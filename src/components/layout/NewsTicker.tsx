@@ -6,6 +6,7 @@ import { WarningIcon, CheckCircleIcon, BroadcastIcon, ClockIcon } from "@phospho
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import StandardModal from "@/components/ui/standard-modal";
+import { useNewsTicker } from "@/hooks/useNewsTicker";
 
 interface TickerItem {
   text: string;
@@ -15,7 +16,7 @@ interface TickerItem {
   source: string;
 }
 
-const tickerItems: TickerItem[] = [
+const fallbackTickerItems: TickerItem[] = [
   {
     text: "BREAKING: 5 UAVs intercepted over Abu Dhabi airspace - all neutralized, no casualties",
     severity: "breaking", time: "2h ago", source: "UAE MOD",
@@ -111,7 +112,19 @@ function TickerStrip({ items, onItemClick }: { items: TickerItem[]; onItemClick:
 }
 
 export default function NewsTicker() {
+  const { items: apiItems } = useNewsTicker();
   const [selected, setSelected] = useState<TickerItem | null>(null);
+
+  // Map API items, fallback to mock
+  const tickerItems: TickerItem[] = apiItems.length > 0
+    ? apiItems.map((item: any) => ({
+        text: item.headline,
+        severity: item.severity === "critical" ? "breaking" as const : item.severity === "warning" ? "alert" as const : "info" as const,
+        time: item.timestamp ? new Date(item.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "",
+        detail: item.headline,
+        source: item.source || "Feed",
+      }))
+    : fallbackTickerItems;
 
   return (
     <>

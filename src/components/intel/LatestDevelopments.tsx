@@ -9,6 +9,7 @@ import {
   GlobeIcon, ClockIcon, WarningIcon, ArrowSquareOutIcon,
   ChatsIcon, FlagIcon, TrendUpIcon, TrendDownIcon,
 } from "@phosphor-icons/react";
+import { useIntel } from "@/hooks/useIntel";
 
 type Sentiment = "escalation" | "de-escalation" | "neutral";
 
@@ -24,7 +25,7 @@ interface Development {
   prediction?: string;
 }
 
-const developments: Development[] = [
+const fallbackDevelopments: Development[] = [
   {
     id: "d1", timestamp: "2026-03-25T12:30:00Z",
     headline: "Trump: 'Severe consequences' if Iran targets Gulf shipping lanes",
@@ -72,8 +73,23 @@ const sentimentConfig: Record<Sentiment, { label: string; color: string; bg: str
 };
 
 export default function LatestDevelopments() {
+  const { developments: apiDevs } = useIntel();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Map API developments, fallback to mock
+  const developments: Development[] = apiDevs.length > 0
+    ? apiDevs.map((d: any) => ({
+        id: d.id,
+        timestamp: d.timestamp,
+        headline: d.headline,
+        detail: d.headline,
+        source: d.source || "GDELT",
+        parties: [],
+        sentiment: d.sentiment as Sentiment,
+        impactOnUAE: "",
+      }))
+    : fallbackDevelopments;
 
   return (
     <Card className="h-full flex flex-col border-border/50">

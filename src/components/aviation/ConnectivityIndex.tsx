@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { GlobeIcon, ArrowRightIcon, TrendUpIcon, TrendDownIcon, MinusIcon } from "@phosphor-icons/react";
+import { useConnectivity } from "@/hooks/useConnectivity";
 
-const routes = [
+const fallbackRoutes = [
   { from: "DXB", to: "LHR", city: "London", stability: 98, trend: "up" as const },
   { from: "DXB", to: "JFK", city: "New York", stability: 95, trend: "stable" as const },
   { from: "AUH", to: "SIN", city: "Singapore", stability: 97, trend: "up" as const },
@@ -36,6 +37,9 @@ const TrendIcon = ({ trend }: { trend: string }) => {
 };
 
 export default function ConnectivityIndex() {
+  const { routes: apiRoutes } = useConnectivity();
+  const routes: typeof fallbackRoutes = apiRoutes.length > 0 ? apiRoutes : fallbackRoutes;
+
   return (
     <Card className="h-full flex flex-col border-border/50">
       <CardHeader className="px-3 pt-3 pb-1.5 shrink-0">

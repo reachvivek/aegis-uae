@@ -7,6 +7,7 @@ import {
   CloudRainIcon, CloudLightningIcon, AirplaneTiltIcon, WarningIcon,
   MapPinIcon, ClockIcon, WarningCircleIcon, WarningDiamondIcon,
 } from "@phosphor-icons/react";
+import { useAlerts } from "@/hooks/useAlerts";
 
 type AlertSeverity = "critical" | "warning" | "advisory";
 
@@ -23,7 +24,13 @@ interface CriticalAlert {
   expiresAt: string;
 }
 
-const alerts: CriticalAlert[] = [
+const categoryIcons: Record<string, React.ReactNode> = {
+  WEATHER: <CloudRainIcon className="w-3 h-3" weight="duotone" />,
+  SEISMIC: <WarningIcon className="w-3 h-3" weight="duotone" />,
+  AIRSPACE: <AirplaneTiltIcon className="w-3 h-3" weight="duotone" />,
+};
+
+const fallbackAlerts: CriticalAlert[] = [
   {
     id: "1", severity: "warning", category: "WEATHER",
     title: "Heavy Rainfall Warning - Abu Dhabi, Dubai & Northern Emirates",
@@ -59,9 +66,26 @@ const severityConfig: Record<AlertSeverity, {
 };
 
 export default function AlertBanner() {
+  const { alerts: apiAlerts } = useAlerts();
   const [activeIndex, setActiveIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [paused, setPaused] = useState(false);
+
+  // Map API alerts to component format, fallback to mock data
+  const alerts: CriticalAlert[] = apiAlerts.length > 0
+    ? apiAlerts.map((a: any) => ({
+        id: a.id,
+        severity: a.severity as AlertSeverity,
+        category: a.category || "GENERAL",
+        title: a.title,
+        description: a.description || "",
+        icon: categoryIcons[a.category] || <WarningIcon className="w-3 h-3" weight="duotone" />,
+        source: a.source || "System",
+        regions: a.regions || [],
+        issuedAt: a.issuedAt,
+        expiresAt: a.expiresAt,
+      }))
+    : fallbackAlerts;
 
   useEffect(() => setMounted(true), []);
 
@@ -72,7 +96,7 @@ export default function AlertBanner() {
       setActiveIndex((prev) => (prev + 1) % alerts.length);
     }, 4000);
     return () => clearInterval(id);
-  }, [paused]);
+  }, [paused, alerts.length]);
 
   if (alerts.length === 0) return null;
 

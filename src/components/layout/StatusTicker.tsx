@@ -7,6 +7,7 @@ import {
   ShieldIcon, AirplaneTiltIcon, WarningIcon, PulseIcon,
   CloudRainIcon, CloudLightningIcon, ClockIcon,
 } from "@phosphor-icons/react";
+import { useStatus } from "@/hooks/useStatus";
 
 interface StatusItem {
   label: string;
@@ -18,7 +19,24 @@ interface StatusItem {
   group: "aviation" | "security" | "weather";
 }
 
-const statuses: StatusItem[] = [
+const iconMap: Record<string, React.ComponentType<{ className?: string; weight?: "bold" | "duotone" | "regular" }>> = {
+  airspace: AirplaneTiltIcon,
+  dxb: PulseIcon,
+  auh: PulseIcon,
+  gcaa: ShieldIcon,
+  threat: WarningIcon,
+  weather_rain: CloudRainIcon,
+  weather_thunder: CloudLightningIcon,
+  gps: PulseIcon,
+};
+
+const groupMap: Record<string, "aviation" | "security" | "weather"> = {
+  airspace: "aviation", dxb: "aviation", auh: "aviation",
+  gcaa: "security", threat: "security", gps: "security",
+  weather_rain: "weather", weather_thunder: "weather",
+};
+
+const fallbackStatuses: StatusItem[] = [
   { label: "AIRSPACE", value: "OPEN", status: "normal", icon: AirplaneTiltIcon, group: "aviation",
     tooltip: "All UAE civilian air corridors are active. No restrictions." },
   { label: "DXB", value: "LOW", status: "normal", icon: PulseIcon, group: "aviation",
@@ -42,7 +60,21 @@ const GroupIcon = ({ group }: { group: string }) => {
 };
 
 export default function StatusTicker() {
+  const { items: apiItems } = useStatus();
   const [time, setTime] = useState("");
+
+  // Map API items to component format, fallback to mock data
+  const statuses: StatusItem[] = apiItems.length > 0
+    ? apiItems.map((item: any) => ({
+        label: item.key.toUpperCase().replace("WEATHER_", ""),
+        value: item.value,
+        status: item.status as "normal" | "elevated" | "critical",
+        icon: iconMap[item.key] || PulseIcon,
+        blink: item.status !== "normal",
+        tooltip: item.tooltip || "",
+        group: groupMap[item.key] || "security",
+      }))
+    : fallbackStatuses;
   useEffect(() => {
     const update = () =>
       setTime(new Date().toLocaleTimeString("en-US", {

@@ -11,6 +11,7 @@ import {
   GraduationCapIcon, BriefcaseIcon, BuildingsIcon, NewspaperIcon,
   WarningIcon, XCircleIcon, ShieldCheckIcon, CaretDownIcon, CaretUpIcon,
 } from "@phosphor-icons/react";
+import { useNews } from "@/hooks/useNews";
 
 type TruthStatus = "confirmed" | "developing" | "cleared";
 
@@ -56,7 +57,7 @@ interface Article {
   categories: Category[];
 }
 
-const articles: Article[] = [
+const fallbackArticles: Article[] = [
   { id: "1", title: "UAE Universities Shift to Online Classes Until March 30 Due to Weather", source: "WAM", verified: true, publishedAt: "2026-03-25T10:00:00Z", tag: "EDUCATION", tagColor: "text-purple-400 bg-purple-500/10", categories: ["all", "students"] },
   { id: "2", title: "MOHRE: Private Sector Remote Work Advisory Extended Through Week", source: "WAM", verified: true, publishedAt: "2026-03-25T09:00:00Z", tag: "EMPLOYMENT", tagColor: "text-blue-400 bg-blue-500/10", categories: ["all", "employees"] },
   { id: "3", title: "Federal Government Offices at Reduced Capacity", source: "WAM", verified: true, publishedAt: "2026-03-25T08:30:00Z", tag: "GOVT", tagColor: "text-amber bg-amber-dim", categories: ["all", "employees", "govt"] },
@@ -66,10 +67,25 @@ const articles: Article[] = [
 ];
 
 export default function TruthFeed() {
+  const { articles: apiArticles } = useNews();
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<Category>("all");
-  const [truthOpen, setTruthOpen] = useState(false); // collapsed by default
+  const [truthOpen, setTruthOpen] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Map API articles, fallback to mock
+  const articles: Article[] = apiArticles.length > 0
+    ? apiArticles.map((a: any, i: number) => ({
+        id: a.id || String(i),
+        title: a.title,
+        source: a.source || "Feed",
+        verified: true,
+        publishedAt: a.pubDate || new Date().toISOString(),
+        tag: (a.category || "NEWS").toUpperCase(),
+        tagColor: a.severity === "critical" ? "text-danger bg-danger-dim" : a.severity === "warning" ? "text-amber bg-amber-dim" : "text-teal bg-teal-dim",
+        categories: ["all"] as Category[],
+      }))
+    : fallbackArticles;
 
   const filtered = articles.filter((a) => a.categories.includes(tab));
 

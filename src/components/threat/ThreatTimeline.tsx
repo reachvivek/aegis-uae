@@ -10,6 +10,7 @@ import {
   CrosshairIcon, ShieldCheckIcon, WarningIcon, MapPinIcon,
   FunnelIcon, ClockIcon, AirplaneTiltIcon,
 } from "@phosphor-icons/react";
+import { useThreats } from "@/hooks/useThreats";
 
 type ThreatType = "missile" | "drone" | "debris";
 type Region = "all" | "dubai" | "abu_dhabi" | "sharjah" | "al_ain" | "qatar" | "oman";
@@ -28,7 +29,7 @@ interface ThreatEvent {
   description: string;
 }
 
-const threatEvents: ThreatEvent[] = [
+const fallbackThreatEvents: ThreatEvent[] = [
   {
     id: "t1", timestamp: "2026-03-25T11:42:00Z", type: "drone", origin: "Unknown - Northern Vector",
     target: "Abu Dhabi Airspace", region: "abu_dhabi", regionLabel: "Abu Dhabi", fired: 5, intercepted: 5,
@@ -90,8 +91,26 @@ function formatTime(iso: string) {
 }
 
 export default function ThreatTimeline() {
+  const { events: apiEvents } = useThreats();
   const [regionFilter, setRegionFilter] = useState<Region>("all");
   const [typeFilter, setTypeFilter] = useState<ThreatType | "all">("all");
+
+  // Map API events, fallback to mock
+  const threatEvents: ThreatEvent[] = apiEvents.length > 0
+    ? apiEvents.map((e: any) => ({
+        id: e.id,
+        timestamp: e.timestamp,
+        type: (e.type || "drone") as ThreatType,
+        origin: "GDELT Intelligence",
+        target: e.headline || "Unknown",
+        region: (e.region || "all") as Region,
+        regionLabel: e.region || "UAE",
+        fired: 0,
+        intercepted: 0,
+        status: "intercepted" as const,
+        description: e.detail || e.headline || "",
+      }))
+    : fallbackThreatEvents;
 
   const filtered = threatEvents.filter((e) => {
     if (regionFilter !== "all" && e.region !== regionFilter) return false;

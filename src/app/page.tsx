@@ -20,10 +20,12 @@ import ThreatTimeline from "@/components/threat/ThreatTimeline";
 import EvacuationRoutes from "@/components/evacuation/EvacuationRoutes";
 import ShelterFinder from "@/components/shelter/ShelterFinder";
 import LatestDevelopments from "@/components/intel/LatestDevelopments";
+import { useSSE } from "@/hooks/useSSE";
 
 type RightTab = "news" | "connectivity" | "threats" | "intel";
 
 export default function Dashboard() {
+  useSSE(); // Enable real-time updates via Server-Sent Events
   const [tab, setTab] = useState<RightTab>("news");
   const [evacOpen, setEvacOpen] = useState(false);
   const [shelterOpen, setShelterOpen] = useState(false);
