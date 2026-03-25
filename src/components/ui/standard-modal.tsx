@@ -58,7 +58,7 @@ export default function StandardModal({
                   {title}
                 </DialogPrimitive.Title>
                 {description && (
-                  <DialogPrimitive.Description className="text-xs text-muted-foreground mt-1">
+                  <DialogPrimitive.Description render={<div />} className="text-xs text-muted-foreground mt-1">
                     {description}
                   </DialogPrimitive.Description>
                 )}
