@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/banner.png" alt="AegisUAE" width="100%" />
+  <img src="docs/screenshots/screen-1.png" alt="AegisUAE Dashboard" width="100%" />
 </p>
 
 <h1 align="center">AegisUAE</h1>
@@ -33,9 +33,8 @@ The system aggregates data from government sources (GCAA, NCM, MOI, NCEMA), defe
 
 ## Screenshots
 
-<!-- Add screenshots here -->
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="100%" />
+  <img src="docs/screenshots/screen-1.png" alt="AegisUAE Command Center" width="100%" />
 </p>
 
 <details>
