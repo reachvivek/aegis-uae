@@ -76,7 +76,7 @@ export default function TruthFeed() {
   // Map API articles, fallback to mock
   const articles: Article[] = apiArticles.length > 0
     ? apiArticles.map((a: any, i: number) => ({
-        id: a.id || String(i),
+        id: `news-${i}`,
         title: a.title,
         source: a.source || "Feed",
         verified: true,
