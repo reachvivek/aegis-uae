@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CrosshairIcon, GlobeIcon, PathIcon,
-  NewspaperIcon, ChartLineIcon,
+  NewspaperIcon, ChartLineIcon, RadioactiveIcon,
 } from "@phosphor-icons/react";
 
 import StatusTicker from "@/components/layout/StatusTicker";
@@ -18,6 +18,7 @@ import StabilityMap from "@/components/map/StabilityMap";
 import FloatingAdvisory from "@/components/advisory/FloatingAdvisory";
 import ThreatTimeline from "@/components/threat/ThreatTimeline";
 import EvacuationRoutes from "@/components/evacuation/EvacuationRoutes";
+import ShelterFinder from "@/components/shelter/ShelterFinder";
 import LatestDevelopments from "@/components/intel/LatestDevelopments";
 
 type RightTab = "news" | "connectivity" | "threats" | "intel";
@@ -25,6 +26,7 @@ type RightTab = "news" | "connectivity" | "threats" | "intel";
 export default function Dashboard() {
   const [tab, setTab] = useState<RightTab>("news");
   const [evacOpen, setEvacOpen] = useState(false);
+  const [shelterOpen, setShelterOpen] = useState(false);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
@@ -75,6 +77,14 @@ export default function Dashboard() {
                 </Tabs>
 
                 <button
+                  onClick={() => setShelterOpen(true)}
+                  className="shrink-0 h-7 px-2 sm:px-2.5 rounded-md flex items-center gap-1 bg-purple-500/15 text-purple-400 text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-purple-500/25 border border-purple-500/30"
+                >
+                  <RadioactiveIcon className="w-3 h-3" weight="bold" />
+                  <span className="hidden sm:inline">SAFE</span>
+                </button>
+
+                <button
                   onClick={() => setEvacOpen(true)}
                   className="shrink-0 h-7 px-2.5 sm:px-3 rounded-md flex items-center gap-1 bg-danger text-white text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-danger/80 pulse-live glow-red border border-danger/50"
                 >
@@ -100,6 +110,9 @@ export default function Dashboard() {
 
       {/* Floating AI Advisory */}
       <FloatingAdvisory />
+
+      {/* Shelter finder modal */}
+      <ShelterFinder open={shelterOpen} onOpenChange={setShelterOpen} />
 
       {/* Evac modal */}
       <EvacuationRoutes open={evacOpen} onOpenChange={setEvacOpen} />

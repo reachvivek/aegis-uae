@@ -7,9 +7,9 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "ResilienceUAE | Crisis Informatics System",
+  title: "AegisUAE | Crisis Informatics System",
   description:
-    "Real-time Airspace Resilience & Recovery Dashboard for the UAE. Verified telemetry, not speculation.",
+    "Real-time crisis command center for UAE. Airspace monitoring, threat tracking, evacuation routing & AI advisory.",
 };
 
 export default function RootLayout({
