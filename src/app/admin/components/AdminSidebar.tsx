@@ -1,15 +1,19 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import {
+  ChartBarIcon, ChatCircleDotsIcon, MagnifyingGlassIcon,
+  MegaphoneIcon, GearSixIcon, ArrowLeftIcon, ShieldCheckIcon,
+} from "@phosphor-icons/react";
 
 type Tab = "overview" | "conversations" | "queries" | "push-alert" | "ai-config";
 
-const navItems: { id: Tab; label: string; icon: string; description: string }[] = [
-  { id: "overview", label: "Overview", icon: "📊", description: "Analytics & stats" },
-  { id: "conversations", label: "Conversations", icon: "💬", description: "Chat sessions" },
-  { id: "queries", label: "Queries", icon: "🔍", description: "Popular questions" },
-  { id: "push-alert", label: "Push Alerts", icon: "🚨", description: "Crisis & alerts" },
-  { id: "ai-config", label: "AI Config", icon: "🤖", description: "Advisory tuning" },
+const navItems: { id: Tab; label: string; icon: React.ComponentType<any>; description: string }[] = [
+  { id: "overview", label: "Overview", icon: ChartBarIcon, description: "Analytics & stats" },
+  { id: "conversations", label: "Conversations", icon: ChatCircleDotsIcon, description: "Chat sessions" },
+  { id: "queries", label: "Queries", icon: MagnifyingGlassIcon, description: "Popular questions" },
+  { id: "push-alert", label: "Push Alerts", icon: MegaphoneIcon, description: "Crisis & alerts" },
+  { id: "ai-config", label: "AI Config", icon: GearSixIcon, description: "Advisory tuning" },
 ];
 
 interface AdminSidebarProps {
@@ -23,44 +27,61 @@ export default function AdminSidebar({ tab, setTab, crisisMode }: AdminSidebarPr
     <aside className="w-56 shrink-0 bg-[#08080C] border-r border-[#1E1E28] flex flex-col h-screen sticky top-0">
       {/* Brand */}
       <div className="px-4 py-5 border-b border-[#1E1E28]">
-        <a href="/" className="block">
-          <h1 className="text-base font-bold">
-            <span className="text-[#00E5B8]">Aegis</span>
-            <span className="text-white">UAE</span>
-          </h1>
-          <p className="text-[9px] text-[#7C7C8A] uppercase tracking-widest mt-0.5">Admin Console</p>
+        <a href="/" className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-[#00E5B8]/10 flex items-center justify-center border border-[#00E5B8]/20">
+            <ShieldCheckIcon className="w-3.5 h-3.5 text-[#00E5B8]" weight="duotone" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold leading-none">
+              <span className="text-[#00E5B8]">Aegis</span>
+              <span className="text-white">UAE</span>
+            </h1>
+            <p className="text-[8px] text-[#7C7C8A] uppercase tracking-widest mt-0.5">Admin Console</p>
+          </div>
         </a>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
         <p className="text-[8px] text-[#7C7C8A]/60 uppercase tracking-widest font-bold px-2 mb-2">Navigation</p>
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setTab(item.id)}
-            className={cn(
-              "w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition-all duration-200 group",
-              tab === item.id
-                ? "bg-[#00E5B8]/10 text-[#00E5B8]"
-                : "text-[#7C7C8A] hover:bg-[#12121A] hover:text-white"
-            )}
-          >
-            <span className="text-sm">{item.icon}</span>
-            <div className="min-w-0">
-              <p className={cn(
-                "text-xs font-semibold truncate",
-                tab === item.id ? "text-[#00E5B8]" : "text-white group-hover:text-white"
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = tab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id)}
+              className={cn(
+                "w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition-all duration-200 group",
+                isActive
+                  ? "bg-[#00E5B8]/10 text-[#00E5B8]"
+                  : "text-[#7C7C8A] hover:bg-[#12121A] hover:text-white"
+              )}
+            >
+              <div className={cn(
+                "w-7 h-7 rounded-md flex items-center justify-center shrink-0 transition-colors",
+                isActive ? "bg-[#00E5B8]/15" : "bg-[#12121A] group-hover:bg-[#1E1E28]"
               )}>
-                {item.label}
-              </p>
-              <p className="text-[9px] text-[#7C7C8A] truncate">{item.description}</p>
-            </div>
-            {tab === item.id && (
-              <div className="ml-auto w-1 h-4 rounded-full bg-[#00E5B8]" />
-            )}
-          </button>
-        ))}
+                <Icon
+                  className={cn("w-3.5 h-3.5", isActive ? "text-[#00E5B8]" : "text-[#7C7C8A] group-hover:text-white")}
+                  weight={isActive ? "duotone" : "regular"}
+                />
+              </div>
+              <div className="min-w-0">
+                <p className={cn(
+                  "text-xs font-semibold truncate",
+                  isActive ? "text-[#00E5B8]" : "text-white group-hover:text-white"
+                )}>
+                  {item.label}
+                </p>
+                <p className="text-[9px] text-[#7C7C8A] truncate">{item.description}</p>
+              </div>
+              {isActive && (
+                <div className="ml-auto w-1 h-4 rounded-full bg-[#00E5B8]" />
+              )}
+            </button>
+          );
+        })}
       </nav>
 
       {/* Crisis Status Footer */}
@@ -92,7 +113,7 @@ export default function AdminSidebar({ tab, setTab, crisisMode }: AdminSidebarPr
           href="/"
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-[#7C7C8A] hover:text-white hover:bg-[#12121A] transition-colors text-xs"
         >
-          <span>←</span>
+          <ArrowLeftIcon className="w-3.5 h-3.5" weight="bold" />
           <span>Back to Dashboard</span>
         </a>
       </div>
