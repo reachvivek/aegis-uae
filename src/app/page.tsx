@@ -196,7 +196,7 @@ export default function Dashboard() {
       </div>
 
       {/* Developer credit */}
-      <div className="w-full px-3 py-0.5 flex items-center justify-end shrink-0">
+      <div className="w-full px-3 py-0.5 flex items-center justify-start shrink-0">
         <a href="https://linkedin.com/in/reachvivek" target="_blank" rel="noopener noreferrer"
           className="text-[7px] font-mono text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors">
           Built by Vivek
