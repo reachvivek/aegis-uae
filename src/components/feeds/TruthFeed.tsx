@@ -184,27 +184,33 @@ export default function TruthFeed() {
 
   const groundTruth = buildGroundTruth(statusItems, alerts, lastSynced);
 
-  // Map news category to tab categories
-  function mapCategories(category: string, title: string): Category[] {
+  // Use AI-assigned tabs from the API, with keyword fallback
+  function getCategories(a: any): Category[] {
     const cats: Category[] = ["all"];
-    const cat = (category || "").toUpperCase();
-    const lower = title.toLowerCase();
+    const aiTabs: string[] = Array.isArray(a.tabs) ? a.tabs : [];
 
-    // Students: education, university, school, classes, exam
-    if (cat === "EDUCATION" || lower.includes("school") || lower.includes("university") || lower.includes("student") || lower.includes("class") || lower.includes("exam") || lower.includes("online learning")) {
+    // Use AI-assigned tabs if available
+    if (aiTabs.length > 0) {
+      for (const t of aiTabs) {
+        if (t === "students" || t === "employees" || t === "govt") {
+          cats.push(t);
+        }
+      }
+      return cats;
+    }
+
+    // Fallback: keyword-based (only for articles without AI tabs)
+    const cat = (a.category || "").toUpperCase();
+    const lower = (a.title || "").toLowerCase();
+
+    if (cat === "EDUCATION" && (lower.includes("closure") || lower.includes("online") || lower.includes("suspend") || lower.includes("reopen") || lower.includes("cancel") || lower.includes("remote"))) {
       cats.push("students");
     }
-    // Work/Employees: employment, remote work, office, WFH, MOHRE, private sector
-    if (cat === "EMPLOYMENT" || lower.includes("remote work") || lower.includes("office") || lower.includes("wfh") || lower.includes("work from home") || lower.includes("mohre") || lower.includes("private sector") || lower.includes("employee")) {
+    if (cat === "EMPLOYMENT" && (lower.includes("remote") || lower.includes("wfh") || lower.includes("closure") || lower.includes("advisory"))) {
       cats.push("employees");
     }
-    // Govt: government, ministry, federal, NCEMA, official, policy, regulation
-    if (cat === "GEOPOLITICS" || lower.includes("government") || lower.includes("ministry") || lower.includes("federal") || lower.includes("ncema") || lower.includes("official") || lower.includes("policy") || lower.includes("regulation") || lower.includes("authority") || lower.includes("cabinet")) {
+    if (cat === "GEOPOLITICS" || (lower.includes("government") && (lower.includes("announce") || lower.includes("decision") || lower.includes("directive")))) {
       cats.push("govt");
-    }
-    // Some overlap: government school decisions affect students too
-    if ((cat === "EDUCATION" || lower.includes("school") || lower.includes("classes")) && (lower.includes("reopen") || lower.includes("resume") || lower.includes("suspend"))) {
-      if (!cats.includes("govt")) cats.push("govt");
     }
     return cats;
   }
@@ -219,7 +225,7 @@ export default function TruthFeed() {
         publishedAt: a.publishedAt || a.pubDate || new Date().toISOString(),
         tag: (a.category || "NEWS").toUpperCase(),
         tagColor: a.severity === "breaking" ? "text-danger bg-danger-dim" : a.severity === "alert" ? "text-amber bg-amber-dim" : "text-teal bg-teal-dim",
-        categories: mapCategories(a.category, a.title),
+        categories: getCategories(a),
         link: a.link || "",
       }))
     : fallbackArticles;

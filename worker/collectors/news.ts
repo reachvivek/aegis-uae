@@ -1,4 +1,5 @@
 import RssParser from "rss-parser";
+import Groq from "groq-sdk";
 import { setCache } from "../db/cache";
 
 const parser = new RssParser();
@@ -21,6 +22,7 @@ interface NewsItem {
   link: string;
   severity: "breaking" | "alert" | "info";
   category: string;
+  tabs: string[]; // AI-assigned tabs: "students", "employees", "govt"
 }
 
 function classifySeverity(title: string): "breaking" | "alert" | "info" {
@@ -45,6 +47,70 @@ function classifyCategory(title: string): string {
   return "GENERAL";
 }
 
+// Use Groq to classify articles into audience tabs
+async function classifyWithAI(articles: NewsItem[]): Promise<NewsItem[]> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey || articles.length === 0) return articles;
+
+  try {
+    const groq = new Groq({ apiKey });
+
+    // Batch in chunks of 30 to fit context
+    const titles = articles.slice(0, 30).map((a, i) => `${i}: ${a.title}`).join("\n");
+
+    const response = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      temperature: 0,
+      max_tokens: 2000,
+      messages: [
+        {
+          role: "system",
+          content: `You are a news classifier for a UAE crisis information system. For each article, assign relevant audience tabs.
+
+TABS:
+- "students": ONLY for news directly about school closures, class suspensions, online learning, university closures, exam postponements, ADEK decisions, education ministry announcements related to the current crisis. Do NOT include general education news like curriculum changes, new programs, or grading systems.
+- "employees": ONLY for news about remote work mandates, office closures, WFH policies, MOHRE advisories, private sector work disruptions, salary/labor decisions tied to the crisis. Do NOT include general employment news.
+- "govt": ONLY for news about government decisions, official announcements, ministry directives, NCEMA updates, federal policy changes, cabinet decisions related to crisis management, military/defense updates affecting civilians.
+
+RULES:
+- Only assign a tab if the article is DIRECTLY relevant and actionable for that audience in a crisis context.
+- General/background news (museum launches, grading systems, historical articles, opinion pieces) should get NO tabs.
+- An article can have 0, 1, 2, or 3 tabs.
+- Crisis-relevant weather, defense, and safety news that affects everyone should NOT get specific tabs (they appear in "All" by default).
+
+Respond with ONLY a JSON array of arrays, one per article by index. Example:
+[[],["students"],["employees","govt"],["govt"],[],["students","govt"]]`
+        },
+        {
+          role: "user",
+          content: titles,
+        },
+      ],
+    });
+
+    const text = response.choices[0]?.message?.content?.trim() || "[]";
+    // Extract JSON array from response (handle markdown code blocks)
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return articles;
+
+    const tabsArray: string[][] = JSON.parse(jsonMatch[0]);
+
+    // Apply AI tabs to articles
+    for (let i = 0; i < Math.min(tabsArray.length, articles.length); i++) {
+      const tabs = tabsArray[i];
+      if (Array.isArray(tabs)) {
+        articles[i].tabs = tabs.filter((t) => ["students", "employees", "govt"].includes(t));
+      }
+    }
+
+    console.log(`[news] AI classified ${tabsArray.length} articles`);
+    return articles;
+  } catch (err) {
+    console.warn("[news] AI classification failed, using keyword fallback:", err);
+    return articles;
+  }
+}
+
 export async function collectNews(): Promise<void> {
   try {
     const allItems: NewsItem[] = [];
@@ -66,6 +132,7 @@ export async function collectNews(): Promise<void> {
             link: item.link || "",
             severity: classifySeverity(title),
             category: classifyCategory(title),
+            tabs: [], // Will be filled by AI
           });
         }
       } catch (feedErr) {
@@ -75,6 +142,9 @@ export async function collectNews(): Promise<void> {
 
     // Sort by date, newest first
     allItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+
+    // AI classification for audience tabs
+    await classifyWithAI(allItems);
 
     // Split into ticker items (breaking/alert) and articles
     const ticker = allItems.filter((n) => n.severity !== "info").slice(0, 15);
