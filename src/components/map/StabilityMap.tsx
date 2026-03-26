@@ -431,154 +431,206 @@ export default function StabilityMap() {
     });
   }, [hasCritical, ready]);
 
-  // Crisis mode: missile interception visualization
+  // Crisis mode: animated missile interception visualization
+  const crisisTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => {
     if (!leafletMap.current || !ready) return;
+
+    // Cleanup function
+    const cleanup = () => {
+      crisisTimers.current.forEach(clearTimeout);
+      crisisTimers.current = [];
+      if (crisisLayerRef.current && leafletMap.current) {
+        leafletMap.current.removeLayer(crisisLayerRef.current);
+        crisisLayerRef.current = null;
+      }
+    };
+
+    cleanup();
+    if (!hasCritical) return cleanup;
 
     (async () => {
       const L = (await import("leaflet")).default;
       const map = leafletMap.current;
-
-      // Clear previous crisis layer
-      if (crisisLayerRef.current) {
-        map.removeLayer(crisisLayerRef.current);
-        crisisLayerRef.current = null;
-      }
-
-      if (!hasCritical) return;
+      if (!map) return;
 
       const crisisGroup = L.layerGroup();
-
-      // ── UAE center & defense shield dome ──
       const uaeCenter: [number, number] = [24.8, 54.8];
 
-      // Multi-ring shield dome (Iron Dome / THAAD aesthetic)
+      // Helper: interpolate between two points
+      const lerp = (a: [number, number], b: [number, number], t: number): [number, number] => [
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t,
+      ];
+
+      // Helper: animate a marker along a path
+      const animateMarker = (
+        marker: any, from: [number, number], to: [number, number],
+        durationMs: number, onComplete?: () => void,
+      ) => {
+        const steps = 60;
+        const stepMs = durationMs / steps;
+        for (let i = 0; i <= steps; i++) {
+          const timer = setTimeout(() => {
+            const t = i / steps;
+            const pos = lerp(from, to, t);
+            marker.setLatLng(pos);
+            if (i === steps && onComplete) onComplete();
+          }, i * stepMs);
+          crisisTimers.current.push(timer);
+        }
+      };
+
+      // Helper: grow a trail behind a moving object
+      const animateTrail = (
+        from: [number, number], to: [number, number],
+        durationMs: number, color: string, weight: number,
+      ) => {
+        const trail = L.polyline([from], {
+          color, weight, opacity: 0.7, dashArray: "8, 4",
+        }).addTo(crisisGroup);
+        const steps = 40;
+        const stepMs = durationMs / steps;
+        for (let i = 0; i <= steps; i++) {
+          const timer = setTimeout(() => {
+            const t = i / steps;
+            const pos = lerp(from, to, t);
+            trail.addLatLng(pos);
+          }, i * stepMs);
+          crisisTimers.current.push(timer);
+        }
+      };
+
+      // ── Shield dome (appears immediately) ──
       [120000, 95000, 70000].forEach((radius, i) => {
-        const opacity = 0.12 - i * 0.03;
         L.circle(uaeCenter, {
           radius,
-          color: "rgba(255,176,32,0.4)",
-          fillColor: `rgba(255,176,32,${opacity})`,
+          color: "rgba(255,176,32,0.35)",
+          fillColor: `rgba(255,176,32,${0.1 - i * 0.025})`,
           fillOpacity: 1, weight: 1, dashArray: "6, 8",
           className: i === 0 ? "pulse-live" : "",
         }).addTo(crisisGroup);
       });
 
-      // Shield arc segments (like umbrella ribs)
-      for (let angle = 180; angle <= 360; angle += 20) {
+      // Shield ribs
+      for (let angle = 180; angle <= 360; angle += 15) {
         const rad = (angle * Math.PI) / 180;
-        const endLat = uaeCenter[0] + 1.1 * Math.sin(rad);
-        const endLng = uaeCenter[1] + 1.1 * Math.cos(rad);
-        L.polyline([uaeCenter, [endLat, endLng]], {
-          color: "rgba(255,176,32,0.15)", weight: 1, dashArray: "3, 6",
+        L.polyline([uaeCenter, [uaeCenter[0] + 1.1 * Math.sin(rad), uaeCenter[1] + 1.1 * Math.cos(rad)]], {
+          color: "rgba(255,176,32,0.12)", weight: 1, dashArray: "3, 6",
         }).addTo(crisisGroup);
       }
 
-      // Shield dome label
       const shieldLabel = L.divIcon({
         className: "airport-label",
-        html: `<div style="
-          font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;
-          color:#FFB020;text-shadow:0 0 10px rgba(0,0,0,0.9);white-space:nowrap;
-          background:rgba(255,176,32,0.1);padding:3px 8px;border-radius:4px;
-          border:1px solid rgba(255,176,32,0.25);letter-spacing:0.1em;
-        ">AIR DEFENSE SHIELD ACTIVE</div>`,
+        html: `<div style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;color:#FFB020;text-shadow:0 0 10px rgba(0,0,0,0.9);white-space:nowrap;background:rgba(255,176,32,0.1);padding:3px 8px;border-radius:4px;border:1px solid rgba(255,176,32,0.25);letter-spacing:0.1em;">AIR DEFENSE SHIELD ACTIVE</div>`,
         iconSize: [180, 20], iconAnchor: [90, 50],
       });
       L.marker(uaeCenter, { icon: shieldLabel, interactive: false }).addTo(crisisGroup);
 
-      // ── Multiple missile trajectories ──
-      const missiles: { origin: [number, number]; intercept: [number, number]; label: string }[] = [
-        { origin: [30.0, 49.5], intercept: [27.2, 52.0], label: "TBM-1" },
-        { origin: [29.2, 50.8], intercept: [26.5, 53.5], label: "TBM-2" },
-        { origin: [28.5, 51.5], intercept: [26.0, 53.8], label: "CM-1" },
+      // Hostile zone label
+      const originLabel = L.divIcon({
+        className: "airport-label",
+        html: `<div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:#FF4757;text-shadow:0 0 10px rgba(0,0,0,0.9);white-space:nowrap;background:rgba(255,71,87,0.15);padding:3px 8px;border-radius:4px;border:1px solid rgba(255,71,87,0.3);letter-spacing:0.05em;">HOSTILE LAUNCH ZONE</div>`,
+        iconSize: [140, 20], iconAnchor: [70, -20],
+      });
+      L.marker([29.5, 50.0], { icon: originLabel, interactive: false }).addTo(crisisGroup);
+
+      // ── Animated missiles ──
+      const missiles = [
+        { origin: [30.0, 49.5] as [number, number], intercept: [27.2, 52.0] as [number, number], label: "TBM-1", delay: 0 },
+        { origin: [29.2, 50.8] as [number, number], intercept: [26.5, 53.5] as [number, number], label: "TBM-2", delay: 800 },
+        { origin: [28.5, 51.5] as [number, number], intercept: [26.0, 53.8] as [number, number], label: "CM-1", delay: 1500 },
       ];
 
       missiles.forEach((m, idx) => {
-        // Threat origin pulse
+        const missileFlightTime = 4000;
+        const interceptorDelay = 2000; // interceptor launches 2s after missile
+        const interceptorFlightTime = 2500;
+
+        // Origin pulsing marker
         L.circleMarker(m.origin, {
           radius: 8, color: "#FF4757", fillColor: "#FF4757",
           fillOpacity: 0.5, weight: 2, opacity: 0.8, className: "pulse-live",
         }).addTo(crisisGroup);
-
-        // Outer glow at origin
         L.circleMarker(m.origin, {
           radius: 16, color: "#FF4757", fillColor: "#FF4757",
-          fillOpacity: 0.08, weight: 1, opacity: 0.4, className: "pulse-live",
+          fillOpacity: 0.08, weight: 1, opacity: 0.3, className: "pulse-live",
         }).addTo(crisisGroup);
 
-        // Missile trajectory (incoming threat - solid red line)
-        const midLat = (m.origin[0] + m.intercept[0]) / 2;
-        const midLng = (m.origin[1] + m.intercept[1]) / 2;
-        L.polyline([m.origin, [midLat + 0.3, midLng], m.intercept], {
-          color: "#FF4757", weight: 2.5, dashArray: "12, 4",
-          opacity: 0.85, smoothFactor: 3,
-        }).addTo(crisisGroup);
+        // Launch missile after staggered delay
+        const launchTimer = setTimeout(() => {
+          if (!leafletMap.current) return;
 
-        // Missile head marker (small triangle-ish)
-        const missileHead = L.divIcon({
-          className: "airport-label",
-          html: `<div style="
-            font-size:14px;filter:drop-shadow(0 0 6px rgba(255,71,87,0.8));
-            animation:pulse-glow 1s ease-in-out infinite;
-          ">🚀</div>`,
-          iconSize: [20, 20], iconAnchor: [10, 10],
-        });
-        L.marker(m.intercept, { icon: missileHead, interactive: false }).addTo(crisisGroup);
+          // Missile marker (red rocket)
+          const missileIcon = L.divIcon({
+            className: "airport-label",
+            html: `<div style="font-size:16px;filter:drop-shadow(0 0 8px rgba(255,71,87,0.9));transform:rotate(135deg);">🚀</div>`,
+            iconSize: [20, 20], iconAnchor: [10, 10],
+          });
+          const missileMarker = L.marker(m.origin, { icon: missileIcon, interactive: false, zIndexOffset: 1000 }).addTo(crisisGroup);
 
-        // Interception burst - multi-ring explosion
-        L.circleMarker(m.intercept, {
-          radius: 20, color: "#FFB020", fillColor: "#FFB020",
-          fillOpacity: 0.08, weight: 1, opacity: 0.4, className: "pulse-live",
-        }).addTo(crisisGroup);
-        L.circleMarker(m.intercept, {
-          radius: 12, color: "#FFB020", fillColor: "#FFB020",
-          fillOpacity: 0.25, weight: 1.5, opacity: 0.7,
-        }).addTo(crisisGroup);
-        L.circleMarker(m.intercept, {
-          radius: 5, color: "#fff", fillColor: "#FFB020",
-          fillOpacity: 0.9, weight: 2, opacity: 1,
-        }).addTo(crisisGroup);
+          // Missile trail (growing red line)
+          animateTrail(m.origin, m.intercept, missileFlightTime, "#FF4757", 2.5);
 
-        // Interceptor trajectory (from UAE toward interception point - teal/green)
-        const interceptorOrigin: [number, number] = [
-          uaeCenter[0] + (idx - 1) * 0.3,
-          uaeCenter[1] - 0.5,
-        ];
-        L.polyline([interceptorOrigin, m.intercept], {
-          color: "#FFB020", weight: 1.5, dashArray: "4, 6", opacity: 0.6,
-        }).addTo(crisisGroup);
+          // Animate missile toward interception point
+          animateMarker(missileMarker, m.origin, m.intercept, missileFlightTime, () => {
+            // Missile reached interception point — show explosion
+            crisisGroup.removeLayer(missileMarker);
 
-        // Threat label
-        const threatLabel = L.divIcon({
-          className: "airport-label",
-          html: `<div style="
-            font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;
-            color:#FF4757;text-shadow:0 0 8px rgba(0,0,0,0.9);white-space:nowrap;
-            background:rgba(255,71,87,0.12);padding:2px 5px;border-radius:3px;
-            border:1px solid rgba(255,71,87,0.25);
-          ">${m.label} — INTERCEPTED</div>`,
-          iconSize: [120, 16], iconAnchor: [60, -14],
-        });
-        L.marker(m.intercept, { icon: threatLabel, interactive: false }).addTo(crisisGroup);
+            // Explosion burst rings
+            [25, 16, 8].forEach((r, ri) => {
+              L.circleMarker(m.intercept, {
+                radius: r, color: ri === 2 ? "#fff" : "#FFB020",
+                fillColor: "#FFB020", fillOpacity: ri === 0 ? 0.1 : ri === 1 ? 0.3 : 0.9,
+                weight: ri === 2 ? 2 : 1.5, opacity: ri === 0 ? 0.4 : 0.8,
+                className: ri === 0 ? "pulse-live" : "",
+              }).addTo(crisisGroup);
+            });
+
+            // Intercepted label
+            const label = L.divIcon({
+              className: "airport-label",
+              html: `<div style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;color:#2ED573;text-shadow:0 0 8px rgba(0,0,0,0.9);white-space:nowrap;background:rgba(46,213,115,0.12);padding:2px 6px;border-radius:3px;border:1px solid rgba(46,213,115,0.3);">✓ ${m.label} INTERCEPTED</div>`,
+              iconSize: [140, 16], iconAnchor: [70, -18],
+            });
+            L.marker(m.intercept, { icon: label, interactive: false }).addTo(crisisGroup);
+          });
+
+          // Launch interceptor 2s after missile
+          const interceptorTimer = setTimeout(() => {
+            if (!leafletMap.current) return;
+
+            const interceptorBase: [number, number] = [
+              uaeCenter[0] + (idx - 1) * 0.3,
+              uaeCenter[1] - 0.3,
+            ];
+
+            // Interceptor marker (shield/defense)
+            const interceptorIcon = L.divIcon({
+              className: "airport-label",
+              html: `<div style="font-size:14px;filter:drop-shadow(0 0 6px rgba(255,176,32,0.8));transform:rotate(-45deg);">🛡️</div>`,
+              iconSize: [18, 18], iconAnchor: [9, 9],
+            });
+            const interceptorMarker = L.marker(interceptorBase, { icon: interceptorIcon, interactive: false, zIndexOffset: 1000 }).addTo(crisisGroup);
+
+            // Interceptor trail (gold line)
+            animateTrail(interceptorBase, m.intercept, interceptorFlightTime, "#FFB020", 1.5);
+
+            // Animate interceptor toward interception point
+            animateMarker(interceptorMarker, interceptorBase, m.intercept, interceptorFlightTime, () => {
+              crisisGroup.removeLayer(interceptorMarker);
+            });
+          }, interceptorDelay);
+          crisisTimers.current.push(interceptorTimer);
+        }, m.delay);
+        crisisTimers.current.push(launchTimer);
       });
-
-      // Origin zone label
-      const originLabel = L.divIcon({
-        className: "airport-label",
-        html: `<div style="
-          font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;
-          color:#FF4757;text-shadow:0 0 10px rgba(0,0,0,0.9);white-space:nowrap;
-          background:rgba(255,71,87,0.15);padding:3px 8px;border-radius:4px;
-          border:1px solid rgba(255,71,87,0.3);letter-spacing:0.05em;
-        ">HOSTILE LAUNCH ZONE</div>`,
-        iconSize: [140, 20], iconAnchor: [70, -20],
-      });
-      L.marker([29.2, 50.2], { icon: originLabel, interactive: false }).addTo(crisisGroup);
 
       crisisGroup.addTo(map);
       crisisLayerRef.current = crisisGroup;
     })();
+
+    return cleanup;
   }, [hasCritical, ready]);
 
   // Toggle layers
