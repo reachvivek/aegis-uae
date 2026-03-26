@@ -34,7 +34,18 @@ interface PopularQuery {
   count: number;
 }
 
-type Tab = "overview" | "conversations" | "queries" | "push-alert";
+interface AIConfig {
+  tone: string;
+  responseStyle: string;
+  bannedTopics: string;
+  customRules: string;
+  signOff: string;
+  maxResponseLength: string;
+  personality: string;
+  filters: string;
+}
+
+type Tab = "overview" | "conversations" | "queries" | "push-alert" | "ai-config";
 
 export default function AdminPage() {
   const [key, setKey] = useState("");
@@ -49,6 +60,8 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [alertForm, setAlertForm] = useState({ severity: "critical", category: "THREAT", title: "", description: "", regions: "UAE", expiresInHours: 24 });
   const [alertSent, setAlertSent] = useState("");
+  const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
+  const [aiConfigSaved, setAiConfigSaved] = useState("");
 
   const fetchData = useCallback(async (section: string, params?: string) => {
     setLoading(true);
@@ -81,6 +94,12 @@ export default function AdminPage() {
     if (tab === "overview") fetchData("overview").then((d) => d && setOverview(d));
     if (tab === "conversations") fetchData("conversations").then((d) => d && setSessions(d.sessions || []));
     if (tab === "queries") fetchData("popular-queries").then((d) => d && setQueries(d.queries || []));
+    if (tab === "ai-config" && !aiConfig) {
+      fetch("/api/admin/ai-config", { headers: { "x-admin-key": key } })
+        .then((r) => r.json())
+        .then((d) => setAiConfig(d))
+        .catch(() => setError("Failed to load AI config"));
+    }
   }, [tab, authenticated, fetchData]);
 
   const viewConversation = async (sessionId: string) => {
@@ -132,7 +151,7 @@ export default function AdminPage() {
       {/* Tabs */}
       <div className="border-b border-[#1E1E28] px-6">
         <div className="max-w-6xl mx-auto flex gap-1">
-          {(["overview", "conversations", "queries", "push-alert"] as const).map((t) => (
+          {(["overview", "conversations", "queries", "push-alert", "ai-config"] as const).map((t) => (
             <button key={t} onClick={() => { setTab(t); setSelectedChat(null); }}
               className={cn(
                 "px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors border-b-2",
@@ -377,6 +396,120 @@ export default function AdminPage() {
 
               <p className="text-[9px] text-[#7C7C8A] text-center">
                 Alert will appear on dashboard within 10 seconds via SSE/SWR polling.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* AI Config */}
+        {tab === "ai-config" && aiConfig && !loading && (
+          <div className="max-w-2xl space-y-4">
+            <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A]">AI Advisory Configuration</p>
+                {aiConfigSaved && <span className="text-xs text-[#00E5B8]">{aiConfigSaved}</span>}
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Personality</label>
+                <select value={aiConfig.personality}
+                  onChange={(e) => setAiConfig((c) => c ? { ...c, personality: e.target.value } : c)}
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-[#00E5B8]/40">
+                  <option value="advisor">Trusted Advisor (calm, authoritative)</option>
+                  <option value="friend">Friendly Expert (warm, conversational)</option>
+                  <option value="military">Military Briefing (concise, factual)</option>
+                  <option value="journalist">Journalist (neutral, fact-driven)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Response Length</label>
+                <select value={aiConfig.maxResponseLength}
+                  onChange={(e) => setAiConfig((c) => c ? { ...c, maxResponseLength: e.target.value } : c)}
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-[#00E5B8]/40">
+                  <option value="short">Short (2-3 paragraphs, quick answers)</option>
+                  <option value="medium">Medium (3-5 paragraphs, balanced detail)</option>
+                  <option value="detailed">Detailed (5+ paragraphs, comprehensive)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Tone & Voice</label>
+                <textarea value={aiConfig.tone}
+                  onChange={(e) => setAiConfig((c) => c ? { ...c, tone: e.target.value } : c)}
+                  rows={2}
+                  placeholder="Describe the tone: warm, professional, calm..."
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40 resize-none" />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Response Style Instructions</label>
+                <textarea value={aiConfig.responseStyle}
+                  onChange={(e) => setAiConfig((c) => c ? { ...c, responseStyle: e.target.value } : c)}
+                  rows={3}
+                  placeholder="How should it structure responses?"
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40 resize-none" />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Custom Rules (one per line)</label>
+                <textarea value={aiConfig.customRules}
+                  onChange={(e) => setAiConfig((c) => c ? { ...c, customRules: e.target.value } : c)}
+                  rows={4}
+                  placeholder="If someone is scared, acknowledge that FIRST&#10;Never repeat yourself&#10;For emergencies: Police 999"
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40 resize-none font-mono text-xs" />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Content Filters (topics/words to avoid)</label>
+                <textarea value={aiConfig.filters}
+                  onChange={(e) => setAiConfig((c) => c ? { ...c, filters: e.target.value } : c)}
+                  rows={2}
+                  placeholder="No profanity. No speculation about military ops."
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40 resize-none" />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Banned Topics (comma-separated)</label>
+                <input type="text" value={aiConfig.bannedTopics}
+                  onChange={(e) => setAiConfig((c) => c ? { ...c, bannedTopics: e.target.value } : c)}
+                  placeholder="Politics, religion, personal opinions"
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40" />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Sign-off Line (appended to serious advisories)</label>
+                <input type="text" value={aiConfig.signOff}
+                  onChange={(e) => setAiConfig((c) => c ? { ...c, signOff: e.target.value } : c)}
+                  placeholder="Stay safe. Follow official MOI/NCEMA updates."
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40" />
+              </div>
+
+              <button
+                onClick={async () => {
+                  setAiConfigSaved("");
+                  setLoading(true);
+                  try {
+                    const res = await fetch("/api/admin/ai-config", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "x-admin-key": key },
+                      body: JSON.stringify(aiConfig),
+                    });
+                    if (!res.ok) throw new Error("Failed");
+                    setAiConfigSaved("Config saved! Changes apply to new conversations immediately.");
+                  } catch {
+                    setError("Failed to save AI config");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="w-full bg-[#00E5B8] hover:bg-[#00E5B8]/90 text-[#050507] font-bold text-sm py-2.5 rounded-lg transition-colors disabled:opacity-50">
+                {loading ? "Saving..." : "Save AI Configuration"}
+              </button>
+
+              <p className="text-[9px] text-[#7C7C8A] text-center">
+                Changes take effect immediately for all new chat conversations.
               </p>
             </div>
           </div>
