@@ -7,6 +7,7 @@ import {
   CloudRainIcon, CloudLightningIcon,
 } from "@phosphor-icons/react";
 import { useStatus } from "@/hooks/useStatus";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface StatusItem {
   label: string;
@@ -60,6 +61,7 @@ const GroupIcon = ({ group }: { group: string }) => {
 
 export default function StatusTicker() {
   const { items: apiItems } = useStatus();
+  const { t } = useLanguage();
 
   // Map API items to component format, fallback to mock data
   const statuses: StatusItem[] = apiItems.length > 0
@@ -86,7 +88,7 @@ export default function StatusTicker() {
               <span className="animate-ping absolute h-full w-full rounded-full bg-teal opacity-60" />
               <span className="relative rounded-full h-1.5 w-1.5 bg-teal" />
             </span>
-            <span className="text-[8px] font-bold tracking-[0.2em] text-teal uppercase">Live</span>
+            <span className="text-[8px] font-bold tracking-[0.2em] text-teal uppercase">{t("Live", "مباشر")}</span>
           </div>
 
           {/* Grouped status pills */}

@@ -14,6 +14,7 @@ import {
 import { useNews } from "@/hooks/useNews";
 import { useStatus } from "@/hooks/useStatus";
 import { useAlerts } from "@/hooks/useAlerts";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type TruthStatus = "confirmed" | "developing" | "cleared";
 
@@ -177,6 +178,7 @@ export default function TruthFeed() {
   const { articles: apiArticles } = useNews();
   const { items: statusItems, lastSynced } = useStatus();
   const { alerts } = useAlerts();
+  const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<Category>("all");
   const [truthOpen, setTruthOpen] = useState(false);
@@ -199,17 +201,20 @@ export default function TruthFeed() {
       return cats;
     }
 
-    // Fallback: keyword-based (only for articles without AI tabs)
+    // Fallback: keyword-based (for articles without AI tabs)
     const cat = (a.category || "").toUpperCase();
     const lower = (a.title || "").toLowerCase();
 
-    if (cat === "EDUCATION" && (lower.includes("closure") || lower.includes("online") || lower.includes("suspend") || lower.includes("reopen") || lower.includes("cancel") || lower.includes("remote"))) {
+    // Students: education-related articles
+    if (cat === "EDUCATION" || lower.includes("school") || lower.includes("university") || lower.includes("student") || lower.includes("class") || lower.includes("exam") || lower.includes("adek") || lower.includes("online learning")) {
       cats.push("students");
     }
-    if (cat === "EMPLOYMENT" && (lower.includes("remote") || lower.includes("wfh") || lower.includes("closure") || lower.includes("advisory"))) {
+    // Work: employment-related articles
+    if (cat === "EMPLOYMENT" || lower.includes("remote work") || lower.includes("office") || lower.includes("wfh") || lower.includes("work from home") || lower.includes("mohre") || lower.includes("private sector") || lower.includes("employee")) {
       cats.push("employees");
     }
-    if (cat === "GEOPOLITICS" || (lower.includes("government") && (lower.includes("announce") || lower.includes("decision") || lower.includes("directive")))) {
+    // Govt: government/geopolitics articles
+    if (cat === "GEOPOLITICS" || cat === "DEFENSE" || lower.includes("government") || lower.includes("ministry") || lower.includes("federal") || lower.includes("ncema") || lower.includes("official") || lower.includes("policy") || lower.includes("cabinet") || lower.includes("military")) {
       cats.push("govt");
     }
     return cats;
@@ -239,7 +244,7 @@ export default function TruthFeed() {
         <div className="flex items-center justify-between mb-1.5">
           <CardTitle className="text-[10px] font-bold uppercase tracking-[0.1em] text-foreground flex items-center gap-1.5">
             <NewspaperIcon className="w-3.5 h-3.5 text-teal" weight="duotone" />
-            News & Updates
+            {t("News & Updates", "الأخبار والتحديثات")}
           </CardTitle>
           {/* Ground Truth toggle */}
           <button
@@ -247,7 +252,7 @@ export default function TruthFeed() {
             className="flex items-center gap-1 text-[7px] font-mono text-teal cursor-pointer hover:text-teal/80 transition-colors"
           >
             <CrosshairIcon className="w-2.5 h-2.5" weight="bold" />
-            Ground Truth ({groundTruth.items.length})
+            {t("Ground Truth", "الحقائق الموثقة")} ({groundTruth.items.length})
             {truthOpen ? <CaretUpIcon className="w-2.5 h-2.5" weight="bold" /> : <CaretDownIcon className="w-2.5 h-2.5" weight="bold" />}
           </button>
         </div>
@@ -256,16 +261,16 @@ export default function TruthFeed() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as Category)}>
           <TabsList className="h-6 w-full bg-secondary/50">
             <TabsTrigger value="all" className="text-[7px] h-4.5 gap-0.5 data-[state=active]:text-teal data-[state=active]:bg-teal-dim">
-              <NewspaperIcon className="w-2.5 h-2.5" weight="bold" /> All
+              <NewspaperIcon className="w-2.5 h-2.5" weight="bold" /> {t("All", "الكل")}
             </TabsTrigger>
             <TabsTrigger value="students" className="text-[7px] h-4.5 gap-0.5 data-[state=active]:text-purple-400 data-[state=active]:bg-purple-500/10">
-              <GraduationCapIcon className="w-2.5 h-2.5" weight="bold" /> Students
+              <GraduationCapIcon className="w-2.5 h-2.5" weight="bold" /> {t("Students", "طلاب")}
             </TabsTrigger>
             <TabsTrigger value="employees" className="text-[7px] h-4.5 gap-0.5 data-[state=active]:text-blue-400 data-[state=active]:bg-blue-500/10">
-              <BriefcaseIcon className="w-2.5 h-2.5" weight="bold" /> Work
+              <BriefcaseIcon className="w-2.5 h-2.5" weight="bold" /> {t("Work", "عمل")}
             </TabsTrigger>
             <TabsTrigger value="govt" className="text-[7px] h-4.5 gap-0.5 data-[state=active]:text-amber data-[state=active]:bg-amber-dim">
-              <BuildingsIcon className="w-2.5 h-2.5" weight="bold" /> Govt
+              <BuildingsIcon className="w-2.5 h-2.5" weight="bold" /> {t("Govt", "حكومة")}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -280,7 +285,7 @@ export default function TruthFeed() {
               <div className="bg-teal-dim/30 border border-teal/15 rounded-lg p-2.5 mb-1">
                 <div className="flex items-center gap-1 mb-1.5">
                   <CrosshairIcon className="w-2.5 h-2.5 text-teal" weight="bold" />
-                  <span className="text-[8px] font-bold text-teal uppercase">Verified Facts</span>
+                  <span className="text-[8px] font-bold text-teal uppercase">{t("Verified Facts", "حقائق موثقة")}</span>
                   <span className="text-[7px] font-mono text-muted-foreground ml-auto flex items-center gap-0.5">
                     <ClockIcon className="w-2 h-2" weight="bold" />
                     {mounted ? formatTimeAgo(groundTruth.lastUpdated) : "..."}
@@ -336,7 +341,7 @@ export default function TruthFeed() {
                   {a.link && (
                     <div className="flex items-center gap-0.5 mt-1">
                       <ArrowSquareOutIcon className="w-2 h-2 text-teal/60 group-hover:text-teal transition-colors" weight="bold" />
-                      <span className="text-[7px] text-teal/60 group-hover:text-teal transition-colors font-mono">Read more</span>
+                      <span className="text-[7px] text-teal/60 group-hover:text-teal transition-colors font-mono">{t("Read more", "اقرأ المزيد")}</span>
                     </div>
                   )}
                 </div>

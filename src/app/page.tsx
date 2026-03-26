@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { BiTooltip } from "@/components/ui/bi-tooltip";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import StatusTicker from "@/components/layout/StatusTicker";
 import Header from "@/components/layout/Header";
@@ -37,13 +38,19 @@ export default function Dashboard() {
   useAlertSound();
   useTracking();
   useCrisisMode();
+  const { t } = useLanguage();
   const [tab, setTab] = useState<RightTab>("news");
   const [evacOpen, setEvacOpen] = useState(false);
   const [shelterOpen, setShelterOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<"stats" | "content" | "both" | null>(null);
   const [maximized, setMaximized] = useState(false);
 
-  const tabLabels: Record<RightTab, string> = { news: "News & Updates", connectivity: "Route Connectivity", threats: "Threat Timeline", intel: "Latest Intel" };
+  const tabLabels: Record<RightTab, string> = {
+    news: t("News & Updates", "الأخبار والتحديثات"),
+    connectivity: t("Route Connectivity", "حالة المسارات"),
+    threats: t("Threat Timeline", "الجدول الزمني للتهديدات"),
+    intel: t("Latest Intel", "آخر المعلومات الاستخباراتية"),
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
@@ -76,7 +83,7 @@ export default function Dashboard() {
                     onClick={() => setCollapsed(collapsed === "both" ? "content" : null)}
                     className="w-full h-9 bg-card border border-border/50 rounded-lg flex items-center justify-between px-3 hover:bg-secondary/50 transition-colors"
                   >
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Stats & Status</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{t("Stats & Status", "الإحصائيات والحالة")}</span>
                     <CaretDownIcon className="w-3 h-3 text-muted-foreground" weight="bold" />
                   </button>
                 ) : (
@@ -98,16 +105,16 @@ export default function Dashboard() {
                 <Tabs value={tab} onValueChange={(v) => setTab(v as RightTab)} className="flex-1 min-w-0">
                   <TabsList className="h-7 w-full bg-card gap-0.5">
                     <TabsTrigger value="news" className="text-[8px] h-5 gap-0.5 data-[state=active]:text-teal data-[state=active]:bg-teal-dim">
-                      <NewspaperIcon className="w-2.5 h-2.5" weight="bold" /> Feed
+                      <NewspaperIcon className="w-2.5 h-2.5" weight="bold" /> {t("Feed", "موجز")}
                     </TabsTrigger>
                     <TabsTrigger value="connectivity" className="text-[8px] h-5 gap-0.5 data-[state=active]:text-teal data-[state=active]:bg-teal-dim">
-                      <ChartLineIcon className="w-2.5 h-2.5" weight="bold" /> Routes
+                      <ChartLineIcon className="w-2.5 h-2.5" weight="bold" /> {t("Routes", "مسارات")}
                     </TabsTrigger>
                     <TabsTrigger value="threats" className="text-[8px] h-5 gap-0.5 data-[state=active]:text-danger data-[state=active]:bg-danger-dim">
-                      <CrosshairIcon className="w-2.5 h-2.5" weight="bold" /> Threats
+                      <CrosshairIcon className="w-2.5 h-2.5" weight="bold" /> {t("Threats", "تهديدات")}
                     </TabsTrigger>
                     <TabsTrigger value="intel" className="text-[8px] h-5 gap-0.5 data-[state=active]:text-cyan data-[state=active]:bg-cyan/10">
-                      <GlobeIcon className="w-2.5 h-2.5" weight="bold" /> Intel
+                      <GlobeIcon className="w-2.5 h-2.5" weight="bold" /> {t("Intel", "استخبارات")}
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -216,16 +223,16 @@ export default function Dashboard() {
                 <Tabs value={tab} onValueChange={(v) => setTab(v as RightTab)}>
                   <TabsList className="h-7 bg-secondary gap-0.5">
                     <TabsTrigger value="news" className="text-[8px] h-5 gap-0.5 data-[state=active]:text-teal data-[state=active]:bg-teal-dim">
-                      <NewspaperIcon className="w-2.5 h-2.5" weight="bold" /> Feed
+                      <NewspaperIcon className="w-2.5 h-2.5" weight="bold" /> {t("Feed", "موجز")}
                     </TabsTrigger>
                     <TabsTrigger value="connectivity" className="text-[8px] h-5 gap-0.5 data-[state=active]:text-teal data-[state=active]:bg-teal-dim">
-                      <ChartLineIcon className="w-2.5 h-2.5" weight="bold" /> Routes
+                      <ChartLineIcon className="w-2.5 h-2.5" weight="bold" /> {t("Routes", "مسارات")}
                     </TabsTrigger>
                     <TabsTrigger value="threats" className="text-[8px] h-5 gap-0.5 data-[state=active]:text-danger data-[state=active]:bg-danger-dim">
-                      <CrosshairIcon className="w-2.5 h-2.5" weight="bold" /> Threats
+                      <CrosshairIcon className="w-2.5 h-2.5" weight="bold" /> {t("Threats", "تهديدات")}
                     </TabsTrigger>
                     <TabsTrigger value="intel" className="text-[8px] h-5 gap-0.5 data-[state=active]:text-cyan data-[state=active]:bg-cyan/10">
-                      <GlobeIcon className="w-2.5 h-2.5" weight="bold" /> Intel
+                      <GlobeIcon className="w-2.5 h-2.5" weight="bold" /> {t("Intel", "استخبارات")}
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>

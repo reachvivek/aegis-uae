@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import StandardModal from "@/components/ui/standard-modal";
 import { useNewsTicker } from "@/hooks/useNewsTicker";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TickerItem {
   text: string;
@@ -114,6 +115,7 @@ function TickerStrip({ items, onItemClick }: { items: TickerItem[]; onItemClick:
 
 export default function NewsTicker() {
   const { items: apiItems } = useNewsTicker();
+  const { t } = useLanguage();
   const [selected, setSelected] = useState<TickerItem | null>(null);
 
   // Map API items, fallback to mock
@@ -133,7 +135,7 @@ export default function NewsTicker() {
       <div className="w-full bg-card/80 border-t border-b border-border/30 shrink-0 overflow-hidden h-6 relative">
         {/* Label */}
         <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-2 bg-danger shadow-[4px_0_12px_rgba(0,0,0,0.5)]">
-          <span className="text-[8px] font-bold text-white tracking-[0.15em] uppercase">BREAKING</span>
+          <span className="text-[8px] font-bold text-white tracking-[0.15em] uppercase">{t("BREAKING", "عاجل")}</span>
         </div>
 
         {/* Two identical strips side by side */}
@@ -171,13 +173,13 @@ export default function NewsTicker() {
               {selected.link && (
                 <a href={selected.link} target="_blank" rel="noopener noreferrer">
                   <Button variant="default" size="sm" className="gap-1 bg-teal hover:bg-teal/90 text-background">
-                    Read Full Article
+                    {t("Read Full Article", "اقرأ المقال كاملاً")}
                   </Button>
                 </a>
               )}
               <div className="flex-1" />
               <Button variant="outline" size="sm" onClick={() => setSelected(null)}>
-                Close
+                {t("Close", "إغلاق")}
               </Button>
             </div>
           }
