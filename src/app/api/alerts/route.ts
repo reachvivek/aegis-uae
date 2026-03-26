@@ -9,7 +9,8 @@ export async function GET() {
     if (!cached) {
       return NextResponse.json({ alerts: [], count: 0 }, { headers: { "Cache-Control": "public, max-age=10" } });
     }
-    return NextResponse.json(cached.data, {
+    const alerts = Array.isArray(cached.data) ? cached.data : cached.data?.alerts || [];
+    return NextResponse.json({ alerts, count: alerts.length }, {
       headers: { "Cache-Control": "public, max-age=10", "X-Fetched-At": cached.fetchedAt },
     });
   } catch {
