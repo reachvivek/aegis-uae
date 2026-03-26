@@ -13,6 +13,8 @@ import {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  prefill?: string;
+  onPrefillConsumed?: () => void;
 }
 
 interface Message {
@@ -53,7 +55,7 @@ function renderMarkdown(text: string) {
   });
 }
 
-export default function AdvisoryModal({ isOpen, onClose }: Props) {
+export default function AdvisoryModal({ isOpen, onClose, prefill, onPrefillConsumed }: Props) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -68,6 +70,41 @@ export default function AdvisoryModal({ isOpen, onClose }: Props) {
   const sessionIdRef = useRef(typeof crypto !== "undefined" ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prefillSentRef = useRef(false);
+
+  // Auto-send prefilled question when modal opens
+  useEffect(() => {
+    if (isOpen && prefill && !prefillSentRef.current && !loading) {
+      prefillSentRef.current = true;
+      setInput(prefill);
+      onPrefillConsumed?.();
+      // Delay to let input state update, then trigger send
+      setTimeout(() => {
+        const fakeInput = prefill;
+        setInput("");
+        const userMessage: Message = { role: "user", content: fakeInput };
+        setMessages((p) => [...p, userMessage]);
+        setLoading(true);
+
+        const history = [...messages, userMessage].map((m) => ({
+          role: m.role,
+          content: m.content,
+          hasImage: !!m.image,
+        }));
+
+        fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: history, sessionId: sessionIdRef.current }),
+        })
+          .then((res) => res.ok ? res.json() : Promise.reject("Failed"))
+          .then((data) => setMessages((p) => [...p, { role: "assistant", content: data.reply }]))
+          .catch(() => setMessages((p) => [...p, { role: "assistant", content: "I'm temporarily unable to process requests. For emergencies: **Police (999)**, **Civil Defense (998)**, **Ambulance (998)**." }]))
+          .finally(() => setLoading(false));
+      }, 100);
+    }
+    if (!isOpen) prefillSentRef.current = false;
+  }, [isOpen, prefill]);
 
   // Auto-scroll to bottom
   useEffect(() => {

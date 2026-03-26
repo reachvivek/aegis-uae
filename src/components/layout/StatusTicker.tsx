@@ -36,6 +36,33 @@ const groupMap: Record<string, "aviation" | "security" | "weather"> = {
   weather_rain: "weather", weather_thunder: "weather",
 };
 
+const labelTranslations: Record<string, string> = {
+  AIRSPACE: "المجال الجوي",
+  DXB: "دبي",
+  AUH: "أبوظبي",
+  DWC: "آل مكتوم",
+  SHJ: "الشارقة",
+  GCAA: "الطيران المدني",
+  THREAT: "التهديد",
+  RAIN: "أمطار",
+  THUNDER: "رعد",
+  GPS: "تحديد المواقع",
+};
+
+const valueTranslations: Record<string, string> = {
+  OPEN: "مفتوح",
+  CLOSED: "مغلق",
+  LOW: "منخفض",
+  MOD: "متوسط",
+  HIGH: "مرتفع",
+  NORMAL: "طبيعي",
+  ELEVATED: "مرتفع",
+  CRITICAL: "حرج",
+  WARNING: "تحذير",
+  WATCH: "مراقبة",
+  JAMMED: "معطل",
+};
+
 const fallbackStatuses: StatusItem[] = [
   { label: "AIRSPACE", value: "OPEN", status: "normal", icon: AirplaneTiltIcon, group: "aviation",
     tooltip: "All UAE civilian air corridors are active. No restrictions." },
@@ -61,7 +88,7 @@ const GroupIcon = ({ group }: { group: string }) => {
 
 export default function StatusTicker() {
   const { items: apiItems } = useStatus();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   // Map API items to component format, fallback to mock data
   const statuses: StatusItem[] = apiItems.length > 0
@@ -103,8 +130,8 @@ export default function StatusTicker() {
                         "flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-card/80 shrink-0 cursor-help transition-colors hover:bg-secondary",
                         s.blink && "animate-pulse"
                       )}>
-                        <span className="text-[8px] text-muted-foreground font-mono">{s.label}:</span>
-                        <span className={cn("text-[8px] font-bold font-mono", getStatusColor(s.status))}>{s.value}</span>
+                        <span className="text-[8px] text-muted-foreground font-mono">{lang === "ar" ? (labelTranslations[s.label] || s.label) : s.label}:</span>
+                        <span className={cn("text-[8px] font-bold font-mono", getStatusColor(s.status))}>{lang === "ar" ? (valueTranslations[s.value] || s.value) : s.value}</span>
                         {s.blink && (
                           <span className="relative flex h-1 w-1 ml-0.5">
                             <span className="animate-ping absolute h-full w-full rounded-full bg-amber opacity-75" />

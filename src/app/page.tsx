@@ -153,7 +153,7 @@ export default function Dashboard() {
                     className="shrink-0 h-7 px-2 sm:px-2.5 rounded-md flex items-center gap-1 bg-purple-500/15 text-purple-400 text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-purple-500/25 border border-purple-500/30"
                   >
                     <RadioactiveIcon className="w-3 h-3" weight="bold" />
-                    <span className="hidden sm:inline">SAFE</span>
+                    <span className="hidden sm:inline">{t("SAFE", "أمان")}</span>
                   </button>
                 </BiTooltip>
 
@@ -163,7 +163,7 @@ export default function Dashboard() {
                     className="shrink-0 h-7 px-2.5 sm:px-3 rounded-md flex items-center gap-1 bg-danger text-white text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-danger/80 pulse-live glow-red border border-danger/50"
                   >
                     <PathIcon className="w-3 h-3" weight="bold" />
-                    <span className="hidden sm:inline">EVAC</span>
+                    <span className="hidden sm:inline">{t("EVAC", "إخلاء")}</span>
                   </button>
                 </BiTooltip>
               </div>

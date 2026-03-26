@@ -39,7 +39,7 @@ export default function AIConfigPanel({ aiConfig, setAiConfig, adminKey, loading
           {saved && <span className="text-xs text-[#00E5B8] bg-[#00E5B8]/10 px-2 py-1 rounded">{saved}</span>}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Personality</label>
             <select value={aiConfig.personality}
@@ -95,7 +95,7 @@ export default function AIConfigPanel({ aiConfig, setAiConfig, adminKey, loading
             className={inputClass + " resize-none"} />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Banned Topics (comma-separated)</label>
             <input type="text" value={aiConfig.bannedTopics}

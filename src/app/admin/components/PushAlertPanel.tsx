@@ -185,7 +185,7 @@ export default function PushAlertPanel({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Severity</label>
             <select value={alertForm.severity} onChange={(e) => setAlertForm((f) => ({ ...f, severity: e.target.value }))}
@@ -235,7 +235,7 @@ export default function PushAlertPanel({
             className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40 resize-none text-right" />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Regions</label>
             <input type="text" value={alertForm.regions} onChange={(e) => setAlertForm((f) => ({ ...f, regions: e.target.value }))}

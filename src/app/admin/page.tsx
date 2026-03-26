@@ -74,6 +74,7 @@ export default function AdminPage() {
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
   const [crisisMode, setCrisisMode] = useState(false);
   const [crisisLoading, setCrisisLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fetchData = useCallback(async (section: string, params?: string) => {
     setLoading(true);
@@ -188,7 +189,7 @@ export default function AdminPage() {
   return (
     <div className="flex min-h-screen bg-[#050507] text-white">
       {/* Sidebar */}
-      <AdminSidebar tab={tab} setTab={(t) => { setTab(t); setSelectedChat(null); }} crisisMode={crisisMode} />
+      <AdminSidebar tab={tab} setTab={(t) => { setTab(t); setSelectedChat(null); }} crisisMode={crisisMode} mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -198,10 +199,11 @@ export default function AdminPage() {
           crisisMode={crisisMode}
           crisisLoading={crisisLoading}
           toggleCrisisMode={toggleCrisisMode}
+          onMenuToggle={() => setSidebarOpen(true)}
         />
 
         {/* Content */}
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto">
           {loading && <div className="text-center text-[#7C7C8A] text-sm py-8">Loading...</div>}
           {error && (
             <div className="text-center text-red-400 text-sm py-3 mb-4 bg-red-500/10 rounded-lg border border-red-500/20">

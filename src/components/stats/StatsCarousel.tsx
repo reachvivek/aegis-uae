@@ -12,6 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import { useStatus } from "@/hooks/useStatus";
 import { useStats } from "@/hooks/useStats";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type TimeRange = "all" | "24h" | "48h" | "7d";
 
@@ -91,6 +92,7 @@ function Sparkline({ data, color, height = 28 }: { data: number[]; color: string
 
 // ─── Aviation Card ───
 function AviationCard({ syncTime }: { syncTime: string | null }) {
+  const { t } = useLanguage();
   const airports = [
     { code: "DXB", total: 1247, onTime: 1089, delayed: 142, cancelled: 16, index: "low", trend: "up", delayDelta: -8, cancelDelta: -3 },
     { code: "AUH", total: 634, onTime: 571, delayed: 56, cancelled: 7, index: "low", trend: "stable", delayDelta: +2, cancelDelta: 0 },
@@ -100,7 +102,7 @@ function AviationCard({ syncTime }: { syncTime: string | null }) {
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 mb-1">
         <AirplaneTiltIcon className="w-3 h-3 text-teal" weight="duotone" />
-        <span className="text-[9px] font-bold uppercase tracking-[0.1em]">Aviation Pulse</span>
+        <span className="text-[9px] font-bold uppercase tracking-[0.1em]">{t("Aviation Pulse", "نبض الطيران")}</span>
         <SyncBadge timestamp={syncTime} />
       </div>
       {airports.map((ap) => {
@@ -123,13 +125,13 @@ function AviationCard({ syncTime }: { syncTime: string | null }) {
             <div className="flex items-center justify-between text-center">
               <div className="flex-1">
                 <p className="text-xs font-bold font-mono leading-none">{ap.total.toLocaleString()}</p>
-                <p className="text-[6px] text-muted-foreground uppercase mt-0.5">Flights</p>
+                <p className="text-[6px] text-muted-foreground uppercase mt-0.5">{t("Flights", "رحلات")}</p>
               </div>
               <div className="w-px h-4 bg-border/30" />
               <div className="flex-1">
                 <p className="text-xs font-bold font-mono leading-none text-amber">{ap.delayed}</p>
                 <div className="flex items-center justify-center gap-0.5 mt-0.5">
-                  <p className="text-[6px] text-muted-foreground uppercase">Del.</p>
+                  <p className="text-[6px] text-muted-foreground uppercase">{t("Del.", "تأخير")}</p>
                   <Delta value={ap.delayDelta} />
                 </div>
               </div>
@@ -137,7 +139,7 @@ function AviationCard({ syncTime }: { syncTime: string | null }) {
               <div className="flex-1">
                 <p className="text-xs font-bold font-mono leading-none text-danger">{ap.cancelled}</p>
                 <div className="flex items-center justify-center gap-0.5 mt-0.5">
-                  <p className="text-[6px] text-muted-foreground uppercase">Canc.</p>
+                  <p className="text-[6px] text-muted-foreground uppercase">{t("Canc.", "إلغاء")}</p>
                   <Delta value={ap.cancelDelta} />
                 </div>
               </div>
@@ -152,6 +154,7 @@ function AviationCard({ syncTime }: { syncTime: string | null }) {
 // ─── Threat Stats Card with time range tabs + sparklines ───
 function ThreatCard({ syncTime }: { syncTime: string | null }) {
   const [range, setRange] = useState<TimeRange>("all");
+  const { t } = useLanguage();
   const d = threatData[range];
   const totalFired = d.missilesFired + d.dronesFired;
   const totalInt = d.missilesInt + d.dronesInt;
@@ -161,16 +164,16 @@ function ThreatCard({ syncTime }: { syncTime: string | null }) {
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <CrosshairIcon className="w-3 h-3 text-danger" weight="duotone" />
-        <span className="text-[9px] font-bold uppercase tracking-[0.1em]">Threat Summary</span>
+        <span className="text-[9px] font-bold uppercase tracking-[0.1em]">{t("Threat Summary", "ملخص التهديدات")}</span>
         <SyncBadge timestamp={syncTime} />
         <div className="flex items-center gap-0.5">
-          {(["all", "24h", "48h", "7d"] as const).map((t) => (
-            <button key={t} onClick={() => setRange(t)}
+          {(["all", "24h", "48h", "7d"] as const).map((r) => (
+            <button key={r} onClick={() => setRange(r)}
               className={cn(
                 "text-[7px] font-mono font-bold px-1.5 py-0.5 rounded transition-colors",
-                range === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+                range === r ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
               )}>
-              {t === "all" ? "All" : t}
+              {r === "all" ? t("All", "الكل") : r}
             </button>
           ))}
         </div>
@@ -181,7 +184,7 @@ function ThreatCard({ syncTime }: { syncTime: string | null }) {
         <div className="flex items-center justify-between">
           <div>
             <p className={cn("text-2xl font-bold font-mono leading-none", interceptRate >= 95 ? "text-success" : interceptRate >= 80 ? "text-amber" : "text-danger")}>{interceptRate}%</p>
-            <p className="text-[7px] text-muted-foreground uppercase mt-0.5">Intercept Rate</p>
+            <p className="text-[7px] text-muted-foreground uppercase mt-0.5">{t("Intercept Rate", "معدل الاعتراض")}</p>
           </div>
           <div className="text-right">
             <p className="text-lg font-bold font-mono leading-none">
@@ -189,7 +192,7 @@ function ThreatCard({ syncTime }: { syncTime: string | null }) {
               <span className="text-muted-foreground text-xs">/</span>
               <span>{totalFired}</span>
             </p>
-            <p className="text-[7px] text-muted-foreground uppercase mt-0.5">Intercepted / Fired</p>
+            <p className="text-[7px] text-muted-foreground uppercase mt-0.5">{t("Intercepted / Fired", "اعتراض / إطلاق")}</p>
           </div>
         </div>
         <div className="h-1.5 bg-danger/20 rounded-full overflow-hidden mt-1.5">
@@ -201,59 +204,59 @@ function ThreatCard({ syncTime }: { syncTime: string | null }) {
       <div className="grid grid-cols-3 gap-1.5 mb-2">
         <div className={cn("bg-secondary/50 rounded-md p-1.5 border text-center", d.deaths > 0 ? "border-danger/30" : "border-border/30")}>
           <p className={cn("text-sm font-bold font-mono leading-none", d.deaths > 0 ? "text-danger" : "text-success")}>{d.deaths}</p>
-          <p className="text-[6px] text-muted-foreground uppercase mt-0.5">Deaths</p>
+          <p className="text-[6px] text-muted-foreground uppercase mt-0.5">{t("Deaths", "وفيات")}</p>
         </div>
         <div className={cn("bg-secondary/50 rounded-md p-1.5 border text-center", d.injured > 0 ? "border-amber/30" : "border-border/30")}>
           <p className={cn("text-sm font-bold font-mono leading-none", d.injured > 0 ? "text-amber" : "text-success")}>{d.injured}</p>
-          <p className="text-[6px] text-muted-foreground uppercase mt-0.5">Injured</p>
+          <p className="text-[6px] text-muted-foreground uppercase mt-0.5">{t("Injured", "إصابات")}</p>
         </div>
         <div className="bg-secondary/50 rounded-md p-1.5 border border-border/30 text-center">
           <p className="text-sm font-bold font-mono leading-none text-muted-foreground">{d.debris}</p>
-          <p className="text-[6px] text-muted-foreground uppercase mt-0.5">Debris</p>
+          <p className="text-[6px] text-muted-foreground uppercase mt-0.5">{t("Debris", "حطام")}</p>
         </div>
       </div>
 
       {/* Missiles mini chart */}
       <div className="bg-secondary/50 rounded-lg p-2 border border-border/30 mb-1.5">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[8px] font-bold uppercase text-danger">Missiles</span>
+          <span className="text-[8px] font-bold uppercase text-danger">{t("Missiles", "صواريخ")}</span>
           <div className="flex items-center gap-3">
             <div className="text-right">
               <p className="text-sm font-bold font-mono text-danger leading-none">{d.missilesFired}</p>
-              <p className="text-[6px] text-muted-foreground uppercase">Fired</p>
+              <p className="text-[6px] text-muted-foreground uppercase">{t("Fired", "أُطلق")}</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-bold font-mono text-success leading-none">{d.missilesInt}</p>
-              <p className="text-[6px] text-muted-foreground uppercase">Int.</p>
+              <p className="text-[6px] text-muted-foreground uppercase">{t("Int.", "اعتراض")}</p>
             </div>
           </div>
         </div>
         <Sparkline data={d.missileSpark} color="#FF4757" height={24} />
         <div className="flex justify-between mt-0.5">
           <span className="text-[6px] text-muted-foreground font-mono">{range === "all" ? "Jan 15" : `-${range}`}</span>
-          <span className="text-[6px] text-muted-foreground font-mono">now</span>
+          <span className="text-[6px] text-muted-foreground font-mono">{t("now", "الآن")}</span>
         </div>
       </div>
 
       {/* Drones mini chart */}
       <div className="bg-secondary/50 rounded-lg p-2 border border-border/30">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[8px] font-bold uppercase text-amber">Drones / UAV</span>
+          <span className="text-[8px] font-bold uppercase text-amber">{t("Drones / UAV", "طائرات مسيرة")}</span>
           <div className="flex items-center gap-3">
             <div className="text-right">
               <p className="text-sm font-bold font-mono text-amber leading-none">{d.dronesFired}</p>
-              <p className="text-[6px] text-muted-foreground uppercase">Fired</p>
+              <p className="text-[6px] text-muted-foreground uppercase">{t("Fired", "أُطلق")}</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-bold font-mono text-success leading-none">{d.dronesInt}</p>
-              <p className="text-[6px] text-muted-foreground uppercase">Int.</p>
+              <p className="text-[6px] text-muted-foreground uppercase">{t("Int.", "اعتراض")}</p>
             </div>
           </div>
         </div>
         <Sparkline data={d.droneSpark} color="#FFB020" height={24} />
         <div className="flex justify-between mt-0.5">
           <span className="text-[6px] text-muted-foreground font-mono">{range === "all" ? "Jan 15" : `-${range}`}</span>
-          <span className="text-[6px] text-muted-foreground font-mono">now</span>
+          <span className="text-[6px] text-muted-foreground font-mono">{t("now", "الآن")}</span>
         </div>
       </div>
 
@@ -293,6 +296,7 @@ const defenseData: Record<DefenseRange, { name: string; type: string; intercepts
 
 function DefenseCard({ syncTime }: { syncTime: string | null }) {
   const [range, setRange] = useState<DefenseRange>("all");
+  const { t } = useLanguage();
   const systems = defenseData[range];
   const totalInt = systems.reduce((s, sys) => s + sys.intercepts, 0);
 
@@ -300,16 +304,16 @@ function DefenseCard({ syncTime }: { syncTime: string | null }) {
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <ShieldCheckIcon className="w-3 h-3 text-teal" weight="duotone" />
-        <span className="text-[9px] font-bold uppercase tracking-[0.1em]">Defense Systems</span>
+        <span className="text-[9px] font-bold uppercase tracking-[0.1em]">{t("Defense Systems", "أنظمة الدفاع")}</span>
         <SyncBadge timestamp={syncTime} />
         <div className="flex items-center gap-0.5">
-          {(["all", "24h", "48h", "7d"] as const).map((t) => (
-            <button key={t} onClick={() => setRange(t)}
+          {(["all", "24h", "48h", "7d"] as const).map((r) => (
+            <button key={r} onClick={() => setRange(r)}
               className={cn(
                 "text-[7px] font-mono font-bold px-1.5 py-0.5 rounded transition-colors",
-                range === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+                range === r ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
               )}>
-              {t === "all" ? "All" : t}
+              {r === "all" ? t("All", "الكل") : r}
             </button>
           ))}
         </div>
@@ -319,9 +323,9 @@ function DefenseCard({ syncTime }: { syncTime: string | null }) {
       <div className="bg-secondary/50 rounded-lg p-2 border border-border/30 mb-2 flex items-center justify-between">
         <div>
           <p className="text-xl font-bold font-mono text-success leading-none">{totalInt}</p>
-          <p className="text-[7px] text-muted-foreground uppercase mt-0.5">Total Intercepts</p>
+          <p className="text-[7px] text-muted-foreground uppercase mt-0.5">{t("Total Intercepts", "إجمالي الاعتراضات")}</p>
         </div>
-        <Badge variant="outline" className="text-[7px] border-0 px-1.5 py-0.5 text-success bg-success-dim font-bold">ALL SYSTEMS ACTIVE</Badge>
+        <Badge variant="outline" className="text-[7px] border-0 px-1.5 py-0.5 text-success bg-success-dim font-bold">{t("ALL SYSTEMS ACTIVE", "جميع الأنظمة نشطة")}</Badge>
       </div>
 
       <div className="space-y-1.5">
@@ -348,6 +352,7 @@ function DefenseCard({ syncTime }: { syncTime: string | null }) {
 // ─── Situation Status + GPS Card (live from API) ───
 function SituationCard({ syncTime }: { syncTime: string | null }) {
   const { items } = useStatus();
+  const { t } = useLanguage();
 
   // Derive values from live status API
   const threatItem = items.find((i: any) => i.key === "threat");
@@ -360,18 +365,32 @@ function SituationCard({ syncTime }: { syncTime: string | null }) {
 
   const statusColor = isActive ? "text-danger" : isCaution ? "text-amber" : "text-success";
   const statusBg = isActive ? "bg-danger-dim border-danger/30" : isCaution ? "bg-amber-dim border-amber/30" : "bg-success-dim border-success/30";
-  const statusLabel = isActive ? "ACTIVE THREAT" : isCaution ? "ELEVATED" : "NORMAL";
+  const statusLabel = isActive ? t("ACTIVE THREAT", "تهديد نشط") : isCaution ? t("ELEVATED", "مرتفع") : t("NORMAL", "طبيعي");
 
   const gpsJammed = gpsItem?.value === "JAMMED";
   const gpsTooltip = gpsItem?.tooltip || "";
 
   const airspaceOpen = airspaceItem?.value === "OPEN";
 
+  const situationLabels: Record<string, string> = {
+    Airspace: t("Airspace", "المجال الجوي"),
+    Internet: t("Internet", "الإنترنت"),
+    "Civil Defense": t("Civil Defense", "الدفاع المدني"),
+    "Power Grid": t("Power Grid", "شبكة الكهرباء"),
+  };
+
+  const situationValues: Record<string, string> = {
+    OPEN: t("OPEN", "مفتوح"),
+    STABLE: t("STABLE", "مستقر"),
+    STANDBY: t("STANDBY", "استعداد"),
+    NORMAL: t("NORMAL", "طبيعي"),
+  };
+
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <SirenIcon className="w-3 h-3 text-cyan" weight="duotone" />
-        <span className="text-[9px] font-bold uppercase tracking-[0.1em]">Situation Status</span>
+        <span className="text-[9px] font-bold uppercase tracking-[0.1em]">{t("Situation Status", "حالة الوضع")}</span>
         <SyncBadge timestamp={syncTime} />
       </div>
 
@@ -386,10 +405,10 @@ function SituationCard({ syncTime }: { syncTime: string | null }) {
             ) : (
               <ShieldCheckIcon className="w-4 h-4 text-success" weight="fill" />
             )}
-            <span className="text-[7px] uppercase text-muted-foreground font-bold">Threat</span>
+            <span className="text-[7px] uppercase text-muted-foreground font-bold">{t("Threat", "التهديد")}</span>
           </div>
           <p className={cn("text-sm font-bold font-mono leading-none mb-1", statusColor)}>{statusLabel}</p>
-          <p className="text-[7px] text-muted-foreground font-mono">{threatItem?.tooltip || "Monitoring active"}</p>
+          <p className="text-[7px] text-muted-foreground font-mono">{threatItem?.tooltip || t("Monitoring active", "المراقبة نشطة")}</p>
         </div>
 
         <div className={cn(
@@ -402,12 +421,12 @@ function SituationCard({ syncTime }: { syncTime: string | null }) {
             ) : (
               <NavigationArrowIcon className="w-4 h-4 text-success" weight="fill" />
             )}
-            <span className="text-[7px] uppercase text-muted-foreground font-bold">GPS</span>
+            <span className="text-[7px] uppercase text-muted-foreground font-bold">{t("GPS", "تحديد المواقع")}</span>
           </div>
           <p className={cn("text-sm font-bold font-mono leading-none mb-1", gpsJammed ? "text-danger" : "text-success")}>
-            {gpsItem?.value || "UNKNOWN"}
+            {gpsItem?.value || t("UNKNOWN", "غير معروف")}
           </p>
-          <p className="text-[7px] text-muted-foreground font-mono">{gpsTooltip || "Checking status"}</p>
+          <p className="text-[7px] text-muted-foreground font-mono">{gpsTooltip || t("Checking status", "فحص الحالة")}</p>
         </div>
       </div>
 
@@ -422,8 +441,8 @@ function SituationCard({ syncTime }: { syncTime: string | null }) {
           <div key={s.label} className="bg-secondary/50 rounded-md px-2 py-1.5 border border-border/30 flex items-center gap-2">
             <s.Icon className={cn("w-3.5 h-3.5 shrink-0", s.ok ? "text-success" : "text-danger")} weight="bold" />
             <div className="min-w-0">
-              <p className={cn("text-[8px] font-bold font-mono leading-none", s.ok ? "text-success" : "text-danger")}>{s.value}</p>
-              <p className="text-[6px] text-muted-foreground uppercase mt-0.5">{s.label}</p>
+              <p className={cn("text-[8px] font-bold font-mono leading-none", s.ok ? "text-success" : "text-danger")}>{situationValues[s.value] || s.value}</p>
+              <p className="text-[6px] text-muted-foreground uppercase mt-0.5">{situationLabels[s.label] || s.label}</p>
             </div>
           </div>
         ))}
@@ -444,10 +463,10 @@ function Delta({ value }: { value: number }) {
 
 // ─── Carousel ───
 const cards = [
-  { id: "aviation", label: "Aviation" },
-  { id: "threats", label: "Threats" },
-  { id: "defense", label: "Defense" },
-  { id: "situation", label: "Status" },
+  { id: "aviation", label: "Aviation", labelAr: "الطيران" },
+  { id: "threats", label: "Threats", labelAr: "التهديدات" },
+  { id: "defense", label: "Defense", labelAr: "الدفاع" },
+  { id: "situation", label: "Status", labelAr: "الحالة" },
 ];
 
 export default function StatsCarousel() {
@@ -455,6 +474,7 @@ export default function StatsCarousel() {
   const [paused, setPaused] = useState(false);
   const { lastSynced } = useStats();
   const { lastSynced: statusSynced } = useStatus();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (paused) return;
@@ -490,7 +510,7 @@ export default function StatsCarousel() {
                 i === active ? "bg-teal/15 text-teal font-bold" : "text-muted-foreground/50 hover:text-muted-foreground"
               )}
             >
-              {c.label}
+              {t(c.label, c.labelAr)}
             </button>
           ))}
         </div>

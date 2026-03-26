@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import {
   ChartBarIcon, ChatCircleDotsIcon, MagnifyingGlassIcon,
-  MegaphoneIcon, GearSixIcon, ArrowLeftIcon, ShieldCheckIcon,
+  MegaphoneIcon, GearSixIcon, ArrowLeftIcon, ShieldCheckIcon, XIcon,
 } from "@phosphor-icons/react";
 
 type Tab = "overview" | "conversations" | "queries" | "push-alert" | "ai-config";
@@ -20,25 +20,46 @@ interface AdminSidebarProps {
   tab: Tab;
   setTab: (tab: Tab) => void;
   crisisMode: boolean;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export default function AdminSidebar({ tab, setTab, crisisMode }: AdminSidebarProps) {
+export default function AdminSidebar({ tab, setTab, crisisMode, mobileOpen, onMobileClose }: AdminSidebarProps) {
   return (
-    <aside className="w-56 shrink-0 bg-[#08080C] border-r border-[#1E1E28] flex flex-col h-screen sticky top-0">
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+      <aside className={cn(
+        "w-56 shrink-0 bg-[#08080C] border-r border-[#1E1E28] flex flex-col h-screen",
+        "fixed top-0 left-0 z-50 transition-transform duration-300 lg:sticky lg:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
       {/* Brand */}
       <div className="px-4 py-5 border-b border-[#1E1E28]">
-        <a href="/" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-[#00E5B8]/10 flex items-center justify-center border border-[#00E5B8]/20">
-            <ShieldCheckIcon className="w-3.5 h-3.5 text-[#00E5B8]" weight="duotone" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold leading-none">
-              <span className="text-[#00E5B8]">Aegis</span>
-              <span className="text-white">UAE</span>
-            </h1>
-            <p className="text-[8px] text-[#7C7C8A] uppercase tracking-widest mt-0.5">Admin Console</p>
-          </div>
-        </a>
+        <div className="flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#00E5B8]/10 flex items-center justify-center border border-[#00E5B8]/20">
+              <ShieldCheckIcon className="w-3.5 h-3.5 text-[#00E5B8]" weight="duotone" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold leading-none">
+                <span className="text-[#00E5B8]">Aegis</span>
+                <span className="text-white">UAE</span>
+              </h1>
+              <p className="text-[8px] text-[#7C7C8A] uppercase tracking-widest mt-0.5">Admin Console</p>
+            </div>
+          </a>
+          {onMobileClose && (
+            <button onClick={onMobileClose} className="lg:hidden text-[#7C7C8A] hover:text-white transition-colors">
+              <XIcon className="w-4 h-4" weight="bold" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Navigation */}
@@ -50,7 +71,7 @@ export default function AdminSidebar({ tab, setTab, crisisMode }: AdminSidebarPr
           return (
             <button
               key={item.id}
-              onClick={() => setTab(item.id)}
+              onClick={() => { setTab(item.id); onMobileClose?.(); }}
               className={cn(
                 "w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition-all duration-200 group",
                 isActive
@@ -118,5 +139,6 @@ export default function AdminSidebar({ tab, setTab, crisisMode }: AdminSidebarPr
         </a>
       </div>
     </aside>
+    </>
   );
 }
