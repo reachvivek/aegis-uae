@@ -299,44 +299,37 @@ export default function AlertBanner() {
     return () => { if (thankYouTimer.current) clearTimeout(thankYouTimer.current); };
   }, [crisisMode, stopSiren, playReliefSound]);
 
-  // --- Auto-open modal for new alerts ---
+  // --- Auto-open critical modal ONLY when crisis mode is active ---
   useEffect(() => {
-    // Critical alerts
+    if (!crisisMode) return; // No popup unless crisis mode is on
     const criticals = alerts.filter(
       (a) => a.severity === "critical" && !dismissedIds.current.has(a.id) && !shownIds.current.has(a.id)
     );
     if (criticals.length > 0) {
       shownIds.current.add(criticals[0].id);
       openModal("critical", criticals[0]);
-      return;
-    }
-    // All Clear alerts (detected by title pattern)
-    const allClears = alerts.filter(
-      (a) => !shownIds.current.has(a.id)
-        && (a.title.toLowerCase().includes("thank you for your cooperation")
-          || a.title.toLowerCase().includes("situation is currently safe"))
-    );
-    if (allClears.length > 0) {
-      shownIds.current.add(allClears[0].id);
-      openModal("allclear", allClears[0]);
-      if (thankYouTimer.current) clearTimeout(thankYouTimer.current);
-      thankYouTimer.current = setTimeout(() => {
-        setModalOpen(false); setModalType(null); setModalAlert(null);
-      }, 5 * 60 * 1000);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiAlerts]);
+  }, [apiAlerts, crisisMode]);
+
+  // Filter banner alerts: when crisis mode is OFF, hide threat alerts and all-clear messages
+  // (they are handled via modals). Only one type shows at a time.
+  const isAllClear = (a: CriticalAlert) =>
+    a.title.toLowerCase().includes("thank you for your cooperation") || a.title.toLowerCase().includes("situation is currently safe");
+  const bannerAlerts = crisisMode
+    ? alerts // During crisis: show everything including threats
+    : alerts.filter((a) => a.severity !== "critical" && !isAllClear(a)); // Normal: hide threats & all-clear
 
   // Auto-rotate banner
   useEffect(() => {
     if (paused) return;
-    const id = setInterval(() => setActiveIndex((prev) => (prev + 1) % alerts.length), 4000);
+    const id = setInterval(() => setActiveIndex((prev) => (prev + 1) % bannerAlerts.length), 4000);
     return () => clearInterval(id);
-  }, [paused, alerts.length]);
+  }, [paused, bannerAlerts.length]);
 
-  if (alerts.length === 0) return null;
+  if (bannerAlerts.length === 0) return null;
 
-  const current = alerts[activeIndex % alerts.length];
+  const current = bannerAlerts[activeIndex % bannerAlerts.length];
   if (!current) return null;
   const s = severityConfig[current.severity] || severityConfig.advisory;
   const theme = modalType ? modalTheme[modalType] : null;
@@ -460,8 +453,8 @@ export default function AlertBanner() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Badge variant="outline" className={cn("text-[7px] sm:text-[8px] gap-1 shrink-0 border-0 font-bold", s.bg, s.text)}>
               <WarningIcon className={cn("w-2.5 h-2.5", current.severity !== "advisory" && "pulse-live")} weight="bold" />
-              <span className="hidden sm:inline">{alerts.length} ALERT{alerts.length > 1 ? "S" : ""}</span>
-              <span className="sm:hidden">{alerts.length}</span>
+              <span className="hidden sm:inline">{bannerAlerts.length} ALERT{bannerAlerts.length > 1 ? "S" : ""}</span>
+              <span className="sm:hidden">{bannerAlerts.length}</span>
             </Badge>
 
             <Badge variant="outline" className={cn("text-[7px] shrink-0 border-0 font-bold", s.bg, s.text)}>
@@ -503,7 +496,7 @@ export default function AlertBanner() {
             </div>
 
             <div className="flex items-center gap-1 shrink-0 ml-auto">
-              {alerts.map((a, i) => {
+              {bannerAlerts.map((a, i) => {
                 const ac = severityConfig[a.severity] || severityConfig.advisory;
                 return (
                   <button

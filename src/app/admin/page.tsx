@@ -99,6 +99,15 @@ export default function AdminPage() {
     }
   };
 
+  // Fetch crisis mode state on auth (needed for header toggle)
+  useEffect(() => {
+    if (!authenticated) return;
+    fetch("/api/admin/crisis-mode")
+      .then((r) => r.json())
+      .then((d) => setCrisisMode(d.active === true))
+      .catch(() => {});
+  }, [authenticated]);
+
   useEffect(() => {
     if (!authenticated) return;
     if (tab === "overview") fetchData("overview").then((d) => d && setOverview(d));
@@ -108,10 +117,6 @@ export default function AdminPage() {
       fetch("/api/admin/alert", { headers: { "x-admin-key": key } })
         .then((r) => r.json())
         .then((d) => setAllAlerts(d.alerts || []))
-        .catch(() => {});
-      fetch("/api/admin/crisis-mode")
-        .then((r) => r.json())
-        .then((d) => setCrisisMode(d.active === true))
         .catch(() => {});
     }
     if (tab === "ai-config" && !aiConfig) {
@@ -181,7 +186,30 @@ export default function AdminPage() {
             <h1 className="text-lg font-bold"><span className="text-[#00E5B8]">Aegis</span>UAE Admin</h1>
             <p className="text-[10px] text-[#7C7C8A] uppercase tracking-wider">Analytics & Conversations</p>
           </div>
-          <a href="/" className="text-xs text-[#7C7C8A] hover:text-white transition-colors">Back to Dashboard</a>
+          <div className="flex items-center gap-4">
+            {/* Crisis Mode Toggle in Header */}
+            <div className="flex items-center gap-2">
+              <div className={cn("w-2 h-2 rounded-full transition-colors", crisisMode ? "bg-red-500 animate-pulse" : "bg-[#2E2E3A]")} />
+              <span className={cn("text-[10px] font-bold uppercase tracking-wider", crisisMode ? "text-red-400" : "text-[#7C7C8A]")}>
+                {crisisMode ? "CRISIS ON" : "Crisis Off"}
+              </span>
+              <button
+                onClick={() => toggleCrisisMode(!crisisMode)}
+                disabled={crisisLoading}
+                className={cn(
+                  "relative w-10 h-5 rounded-full transition-all duration-300 cursor-pointer",
+                  crisisMode ? "bg-red-500" : "bg-[#2E2E3A]",
+                  crisisLoading && "opacity-50"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300",
+                  crisisMode ? "left-5" : "left-0.5"
+                )} />
+              </button>
+            </div>
+            <a href="/" className="text-xs text-[#7C7C8A] hover:text-white transition-colors">Back to Dashboard</a>
+          </div>
         </div>
       </div>
 
