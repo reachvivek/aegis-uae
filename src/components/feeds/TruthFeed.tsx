@@ -74,6 +74,31 @@ export default function TruthFeed() {
   const [truthOpen, setTruthOpen] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Map news category to tab categories
+  function mapCategories(category: string, title: string): Category[] {
+    const cats: Category[] = ["all"];
+    const cat = (category || "").toUpperCase();
+    const lower = title.toLowerCase();
+
+    // Students: education, university, school, classes, exam
+    if (cat === "EDUCATION" || lower.includes("school") || lower.includes("university") || lower.includes("student") || lower.includes("class") || lower.includes("exam") || lower.includes("online learning")) {
+      cats.push("students");
+    }
+    // Work/Employees: employment, remote work, office, WFH, MOHRE, private sector
+    if (cat === "EMPLOYMENT" || lower.includes("remote work") || lower.includes("office") || lower.includes("wfh") || lower.includes("work from home") || lower.includes("mohre") || lower.includes("private sector") || lower.includes("employee")) {
+      cats.push("employees");
+    }
+    // Govt: government, ministry, federal, NCEMA, official, policy, regulation
+    if (cat === "GEOPOLITICS" || lower.includes("government") || lower.includes("ministry") || lower.includes("federal") || lower.includes("ncema") || lower.includes("official") || lower.includes("policy") || lower.includes("regulation") || lower.includes("authority") || lower.includes("cabinet")) {
+      cats.push("govt");
+    }
+    // Some overlap: government school decisions affect students too
+    if ((cat === "EDUCATION" || lower.includes("school") || lower.includes("classes")) && (lower.includes("reopen") || lower.includes("resume") || lower.includes("suspend"))) {
+      if (!cats.includes("govt")) cats.push("govt");
+    }
+    return cats;
+  }
+
   // Map API articles, fallback to mock
   const articles: Article[] = apiArticles.length > 0
     ? apiArticles.map((a: any, i: number) => ({
@@ -83,8 +108,8 @@ export default function TruthFeed() {
         verified: true,
         publishedAt: a.publishedAt || a.pubDate || new Date().toISOString(),
         tag: (a.category || "NEWS").toUpperCase(),
-        tagColor: a.severity === "critical" ? "text-danger bg-danger-dim" : a.severity === "warning" ? "text-amber bg-amber-dim" : "text-teal bg-teal-dim",
-        categories: ["all"] as Category[],
+        tagColor: a.severity === "breaking" ? "text-danger bg-danger-dim" : a.severity === "alert" ? "text-amber bg-amber-dim" : "text-teal bg-teal-dim",
+        categories: mapCategories(a.category, a.title),
         link: a.link || "",
       }))
     : fallbackArticles;

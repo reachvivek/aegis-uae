@@ -7,6 +7,10 @@ const RSS_FEEDS = [
   { url: "https://news.google.com/rss/search?q=UAE+crisis+OR+UAE+airspace+OR+Dubai+airport&hl=en&gl=AE&ceid=AE:en", source: "Google News" },
   { url: "https://news.google.com/rss/search?q=UAE+weather+OR+Dubai+rain+OR+Abu+Dhabi+storm&hl=en&gl=AE&ceid=AE:en", source: "Google News" },
   { url: "https://news.google.com/rss/search?q=Iran+Gulf+OR+Houthi+UAE+OR+Yemen+attack&hl=en&gl=AE&ceid=AE:en", source: "Google News" },
+  { url: "https://news.google.com/rss/search?q=Abu+Dhabi+OR+Dubai+OR+UAE+breaking+news&hl=en&gl=AE&ceid=AE:en", source: "Google News" },
+  { url: "https://news.google.com/rss/search?q=UAE+evacuation+OR+UAE+emergency+OR+UAE+death+OR+UAE+casualties&hl=en&gl=AE&ceid=AE:en", source: "Google News" },
+  { url: "https://news.google.com/rss/search?q=UAE+schools+OR+UAE+university+OR+UAE+classes+OR+UAE+students+OR+ADEK&hl=en&gl=AE&ceid=AE:en", source: "Google News" },
+  { url: "https://news.google.com/rss/search?q=UAE+remote+work+OR+UAE+office+OR+MOHRE+OR+UAE+government+policy&hl=en&gl=AE&ceid=AE:en", source: "Google News" },
 ];
 
 interface NewsItem {
@@ -33,11 +37,11 @@ function classifySeverity(title: string): "breaking" | "alert" | "info" {
 function classifyCategory(title: string): string {
   const lower = title.toLowerCase();
   if (lower.includes("airport") || lower.includes("flight") || lower.includes("airspace") || lower.includes("airline")) return "AVIATION";
-  if (lower.includes("rain") || lower.includes("storm") || lower.includes("weather") || lower.includes("flood")) return "WEATHER";
-  if (lower.includes("missile") || lower.includes("drone") || lower.includes("attack") || lower.includes("defense")) return "DEFENSE";
-  if (lower.includes("iran") || lower.includes("houthi") || lower.includes("diplomat") || lower.includes("sanction")) return "GEOPOLITICS";
-  if (lower.includes("school") || lower.includes("university") || lower.includes("student")) return "EDUCATION";
-  if (lower.includes("work") || lower.includes("remote") || lower.includes("office")) return "EMPLOYMENT";
+  if (lower.includes("rain") || lower.includes("storm") || lower.includes("weather") || lower.includes("flood") || lower.includes("cyclone")) return "WEATHER";
+  if (lower.includes("missile") || lower.includes("drone") || lower.includes("attack") || lower.includes("defense") || lower.includes("intercept")) return "DEFENSE";
+  if (lower.includes("iran") || lower.includes("houthi") || lower.includes("diplomat") || lower.includes("sanction") || lower.includes("government") || lower.includes("ministry") || lower.includes("cabinet") || lower.includes("federal") || lower.includes("policy")) return "GEOPOLITICS";
+  if (lower.includes("school") || lower.includes("university") || lower.includes("student") || lower.includes("class") || lower.includes("exam") || lower.includes("adek") || lower.includes("education") || lower.includes("online learning")) return "EDUCATION";
+  if (lower.includes("work") || lower.includes("remote") || lower.includes("office") || lower.includes("mohre") || lower.includes("employee") || lower.includes("wfh") || lower.includes("private sector")) return "EMPLOYMENT";
   return "GENERAL";
 }
 
