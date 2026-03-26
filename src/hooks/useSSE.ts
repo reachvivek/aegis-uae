@@ -13,6 +13,7 @@ const CHANNEL_TO_KEY: Record<string, string[]> = {
   connectivity: ["/api/flights/connectivity"],
   earthquakes: ["/api/alerts"],
   shelters: ["/api/shelters"],
+  crisis_mode: ["/api/admin/crisis-mode"],
 };
 
 export function useSSE() {

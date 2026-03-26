@@ -11,7 +11,7 @@ import {
   AirplaneTiltIcon, CloudRainIcon, WarningIcon, WaveSineIcon,
 } from "@phosphor-icons/react";
 import { useEarthquakes } from "@/hooks/useEarthquakes";
-import { useAlerts } from "@/hooks/useAlerts";
+import { useCrisisMode } from "@/hooks/useCrisisMode";
 
 // Types
 interface Airport {
@@ -120,14 +120,13 @@ export default function StabilityMap() {
     new Set(["flights", "weather", "airspace", "seismic"])
   );
   const { quakes } = useEarthquakes();
-  const { alerts } = useAlerts();
+  const { crisisMode: hasCritical } = useCrisisMode();
   const layerGroups = useRef<Record<string, any>>({});
   const crisisLayerRef = useRef<any>(null);
   const crisisAnimRef = useRef<any>(null);
   const airportMarkersRef = useRef<any[]>([]);
   const airportRingsRef = useRef<any[]>([]);
   const airportLabelsRef = useRef<any[]>([]);
-  const hasCritical = alerts.some((a: any) => a.severity === "critical");
 
   const toggleLayer = (layer: LayerToggle) => {
     setActiveLayers((prev) => {
@@ -546,18 +545,28 @@ export default function StabilityMap() {
       });
       L.marker([30.5, 49.5], { icon: originLabel, interactive: false }).addTo(crisisGroup);
 
-      // Origin pulsing markers (static, always visible)
-      const missileData = [
-        { origin: [31.5, 49.0] as [number, number], intercept: [27.8, 51.5] as [number, number], label: "TBM-1", delay: 0 },
-        { origin: [30.5, 50.5] as [number, number], intercept: [27.0, 53.0] as [number, number], label: "TBM-2", delay: 2500 },
-        { origin: [29.5, 51.0] as [number, number], intercept: [26.5, 53.5] as [number, number], label: "CM-1", delay: 5000 },
-      ];
-      missileData.forEach((m) => {
-        L.circleMarker(m.origin, {
+      // Randomized missile generator — each loop gets different positions
+      const rand = (min: number, max: number) => min + Math.random() * (max - min);
+      const labels = ["TBM-1", "TBM-2", "CM-1", "BM-1", "IRBM-1", "CM-2"];
+
+      const generateMissiles = () => {
+        const count = 2 + Math.floor(Math.random() * 2); // 2–3 missiles
+        return Array.from({ length: count }, (_, i) => ({
+          origin: [rand(29.0, 32.0), rand(48.5, 51.5)] as [number, number],
+          intercept: [rand(26.0, 28.5), rand(51.0, 54.5)] as [number, number],
+          label: labels[i % labels.length],
+          delay: i * (2000 + Math.random() * 1500),
+        }));
+      };
+
+      // Static origin zone markers
+      const originPoints: [number, number][] = [[31.2, 49.2], [30.2, 50.5], [29.5, 51.2]];
+      originPoints.forEach((pt) => {
+        L.circleMarker(pt, {
           radius: 8, color: "#FF4757", fillColor: "#FF4757",
           fillOpacity: 0.5, weight: 2, opacity: 0.8, className: "pulse-live",
         }).addTo(crisisGroup);
-        L.circleMarker(m.origin, {
+        L.circleMarker(pt, {
           radius: 18, color: "#FF4757", fillColor: "#FF4757",
           fillOpacity: 0.06, weight: 1, opacity: 0.3, className: "pulse-live",
         }).addTo(crisisGroup);
@@ -574,8 +583,9 @@ export default function StabilityMap() {
       const runMissileSequence = () => {
         // Clear previous animated elements
         animGroup.clearLayers();
+        const missiles = generateMissiles();
 
-        missileData.forEach((m, idx) => {
+        missiles.forEach((m, idx) => {
           const missileFlightTime = 8000;
           const interceptorDelay = 3500;
           const interceptorFlightTime = 5000;

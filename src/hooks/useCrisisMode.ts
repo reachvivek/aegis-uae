@@ -1,48 +1,28 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useAlerts } from "./useAlerts";
-
-const CRISIS_DURATION_MS = 150_000; // 2.5 minutes
+import { useEffect } from "react";
+import useSWR from "swr";
+import { fetcher } from "./fetcher";
 
 export function useCrisisMode() {
-  const { alerts } = useAlerts();
-  const [active, setActive] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activatedIds = useRef<Set<string>>(new Set());
+  const { data, mutate } = useSWR("/api/admin/crisis-mode", fetcher, {
+    refreshInterval: 5_000,
+    revalidateOnFocus: true,
+  });
 
-  const activate = useCallback(() => {
-    setActive(true);
-    document.documentElement.classList.add("crisis-mode");
+  const active = data?.active === true;
 
-    // Clear any existing timeout
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-    // Auto-deactivate after duration
-    timeoutRef.current = setTimeout(() => {
-      setActive(false);
+  // Apply/remove crisis-mode class on <html>
+  useEffect(() => {
+    if (active) {
+      document.documentElement.classList.add("crisis-mode");
+    } else {
       document.documentElement.classList.remove("crisis-mode");
-    }, CRISIS_DURATION_MS);
-  }, []);
-
-  // Watch for critical alerts
-  useEffect(() => {
-    const criticals = alerts.filter(
-      (a: any) => a.severity === "critical" && !activatedIds.current.has(a.id)
-    );
-    if (criticals.length > 0) {
-      criticals.forEach((a: any) => activatedIds.current.add(a.id));
-      activate();
     }
-  }, [alerts, activate]);
-
-  // Cleanup on unmount
-  useEffect(() => {
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       document.documentElement.classList.remove("crisis-mode");
     };
-  }, []);
+  }, [active]);
 
-  return { crisisMode: active };
+  return { crisisMode: active, mutate };
 }

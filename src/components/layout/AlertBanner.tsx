@@ -6,14 +6,14 @@ import { cn, formatTimeAgo } from "@/lib/utils";
 import {
   CloudRainIcon, CloudLightningIcon, AirplaneTiltIcon, WarningIcon,
   MapPinIcon, ClockIcon, WarningCircleIcon, WarningDiamondIcon,
-  ShieldWarning, X, Siren,
+  ShieldWarning, X, Siren, CheckCircle,
 } from "@phosphor-icons/react";
 import { useAlerts } from "@/hooks/useAlerts";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from "@/components/ui/dialog";
+import { useCrisisMode } from "@/hooks/useCrisisMode";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 type AlertSeverity = "critical" | "warning" | "advisory";
+type ModalType = "critical" | "allclear" | null;
 
 interface CriticalAlert {
   id: string;
@@ -71,15 +71,67 @@ const severityConfig: Record<AlertSeverity, {
   advisory: { text: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20", dot: "bg-blue-400", label: "ADVISORY" },
 };
 
+// Unified modal theme config
+const modalTheme = {
+  critical: {
+    color: "danger", colorClass: "text-danger", bgTint: "bg-danger/20", borderTint: "border-danger/30",
+    shadowTint: "shadow-[0_0_60px_rgba(255,71,87,0.15)]", borderColor: "border-danger/40",
+    divider: "border-danger/10", badgeBg: "bg-danger", badgeBorder: "border-danger/30", badgeText: "text-danger", badgeTintBg: "bg-danger/10",
+    infoBg: "bg-danger/5", infoBorder: "border-danger/15",
+    btnBg: "bg-danger/10 hover:bg-danger/20 border-danger/20",
+    label: "CRITICAL ALERT",
+    Icon: Siren,
+    instructionsTitle: "Immediate Actions",
+    instructions: [
+      { text: "Move away from", highlight: "windows, glass & doors" },
+      { text: "Seek shelter in an", highlight: "interior room or basement" },
+      { text: "Stay away from", highlight: "open areas & balconies" },
+      { text: "Await official instructions from", highlight: "MOI / NCEMA" },
+    ],
+  },
+  allclear: {
+    color: "green-500", colorClass: "text-green-400", bgTint: "bg-green-500/20", borderTint: "border-green-500/30",
+    shadowTint: "shadow-[0_0_60px_rgba(34,197,94,0.15)]", borderColor: "border-green-500/40",
+    divider: "border-green-500/10", badgeBg: "bg-green-500", badgeBorder: "border-green-500/30", badgeText: "text-green-400", badgeTintBg: "bg-green-500/10",
+    infoBg: "bg-green-500/5", infoBorder: "border-green-500/15",
+    btnBg: "bg-green-500/10 hover:bg-green-500/20 border-green-500/20",
+    label: "ALL CLEAR",
+    Icon: CheckCircle,
+    instructionsTitle: "Safety Guidance",
+    instructions: [
+      { text: "You may", highlight: "resume normal activities" },
+      { text: "Continue to", highlight: "remain cautious and follow official channels" },
+      { text: "Report any", highlight: "suspicious activity to authorities" },
+      { text: "Keep", highlight: "emergency contacts accessible" },
+    ],
+  },
+};
+
+// Default all-clear alert data
+const allClearAlert: CriticalAlert = {
+  id: "allclear", severity: "advisory", category: "GENERAL",
+  title: "Thank you for your cooperation. We reassure you that the situation is currently safe. You may resume your normal activities while continuing to remain cautious and take the necessary precautions, and to follow official instructions. (MOI)",
+  titleAr: "شكراً لتعاونكم، ونطمئنكم بأن الوضع آمن حالياً، ويمكنكم استئناف أنشطتكم المعتادة مع ضرورة أخذ الحيطة والحذر ومتابعة المستجدات. (وزارة الداخلية)",
+  description: "Situation resolved. Resume normal activities with caution.",
+  descriptionAr: "تم حل الموقف. استأنف أنشطتك العادية مع الحذر.",
+  icon: <CheckCircle className="w-3 h-3" weight="duotone" />, source: "MOI",
+  regions: ["UAE"], issuedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 6 * 3600000).toISOString(),
+};
+
 export default function AlertBanner() {
   const { alerts: apiAlerts } = useAlerts();
+  const { crisisMode } = useCrisisMode();
   const [activeIndex, setActiveIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [criticalModalOpen, setCriticalModalOpen] = useState(false);
-  const [criticalModalAlert, setCriticalModalAlert] = useState<CriticalAlert | null>(null);
-  const dismissedCriticalIds = useRef<Set<string>>(new Set());
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [modalAlert, setModalAlert] = useState<CriticalAlert | null>(null);
+  const dismissedIds = useRef<Set<string>>(new Set());
+  const shownIds = useRef<Set<string>>(new Set());
   const sirenCtxRef = useRef<AudioContext | null>(null);
+  const prevCrisisMode = useRef(false);
+  const thankYouTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Map API alerts to component format, fallback to mock data
   const alerts: CriticalAlert[] = (() => {
@@ -100,7 +152,6 @@ export default function AlertBanner() {
       expiresAt: a.expiresAt,
     }));
 
-    // Group seismic alerts into a single summary item
     const seismic = mapped.filter((a) => a.category === "SEISMIC");
     const nonSeismic = mapped.filter((a) => a.category !== "SEISMIC");
 
@@ -117,26 +168,20 @@ export default function AlertBanner() {
           : "advisory" as AlertSeverity;
 
       const summary: CriticalAlert = {
-        id: "seismic-summary",
-        severity: highestSeverity,
-        category: "SEISMIC",
+        id: "seismic-summary", severity: highestSeverity, category: "SEISMIC",
         title: `${seismic.length} Seismic Events Detected – Highest M${maxMag.toFixed(1)}`,
         description: `${seismic.length} earthquakes recorded in the region. Strongest: M${maxMag.toFixed(1)}.`,
-        icon: categoryIcons["SEISMIC"],
-        source: "USGS",
-        regions: ["UAE Region"],
-        issuedAt: seismic[0].issuedAt,
-        expiresAt: seismic[0].expiresAt,
+        icon: categoryIcons["SEISMIC"], source: "USGS",
+        regions: ["UAE Region"], issuedAt: seismic[0].issuedAt, expiresAt: seismic[0].expiresAt,
       };
       return [...nonSeismic, summary];
     }
-
     return mapped;
   })();
 
   useEffect(() => setMounted(true), []);
 
-  // Stop any playing siren immediately
+  // --- Sound functions ---
   const stopSiren = useCallback(() => {
     if (sirenCtxRef.current) {
       try { sirenCtxRef.current.close(); } catch {}
@@ -144,16 +189,14 @@ export default function AlertBanner() {
     }
   }, []);
 
-  // Play loud continuous siren for critical alerts (max 5 seconds, stoppable)
   const playCriticalSiren = useCallback(() => {
-    stopSiren(); // kill any existing siren first
+    stopSiren();
     try {
       const ctx = new AudioContext();
       sirenCtxRef.current = ctx;
       const now = ctx.currentTime;
       const duration = 5;
 
-      // Main siren oscillator - sweeping frequency
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = "sawtooth";
@@ -166,10 +209,8 @@ export default function AlertBanner() {
       gain1.gain.setValueAtTime(0.35, now + duration - 0.3);
       gain1.gain.exponentialRampToValueAtTime(0.001, now + duration);
       osc1.connect(gain1).connect(ctx.destination);
-      osc1.start(now);
-      osc1.stop(now + duration);
+      osc1.start(now); osc1.stop(now + duration);
 
-      // Second harmonic
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.type = "square";
@@ -182,14 +223,11 @@ export default function AlertBanner() {
       gain2.gain.setValueAtTime(0.2, now + duration - 0.3);
       gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
       osc2.connect(gain2).connect(ctx.destination);
-      osc2.start(now);
-      osc2.stop(now + duration);
+      osc2.start(now); osc2.stop(now + duration);
 
-      // Pulsing bass
       const osc3 = ctx.createOscillator();
       const gain3 = ctx.createGain();
-      osc3.type = "sine";
-      osc3.frequency.value = 150;
+      osc3.type = "sine"; osc3.frequency.value = 150;
       for (let t = 0; t < duration; t += 0.25) {
         gain3.gain.setValueAtTime(0.25, now + t);
         gain3.gain.linearRampToValueAtTime(0.05, now + t + 0.125);
@@ -197,53 +235,102 @@ export default function AlertBanner() {
       }
       gain3.gain.exponentialRampToValueAtTime(0.001, now + duration);
       osc3.connect(gain3).connect(ctx.destination);
-      osc3.start(now);
-      osc3.stop(now + duration);
+      osc3.start(now); osc3.stop(now + duration);
 
-      // Auto-cleanup after duration
       setTimeout(() => {
-        if (sirenCtxRef.current === ctx) {
-          try { ctx.close(); } catch {}
-          sirenCtxRef.current = null;
-        }
+        if (sirenCtxRef.current === ctx) { try { ctx.close(); } catch {} sirenCtxRef.current = null; }
       }, (duration + 0.5) * 1000);
-    } catch {
-      // Web Audio not supported
-    }
+    } catch {}
   }, [stopSiren]);
 
-  // Auto-open modal for new critical alerts (track by alert IDs to avoid re-render loops)
-  const shownCriticalIds = useRef<Set<string>>(new Set());
+  const playReliefSound = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const now = ctx.currentTime;
+      // C5 -> E5 -> G5 ascending major chord
+      [{ freq: 523, start: 0, end: 0.6 }, { freq: 659, start: 0.15, end: 0.8 }, { freq: 784, start: 0.35, end: 1.2 }]
+        .forEach(({ freq, start, end }) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = "sine"; o.frequency.value = freq;
+          g.gain.setValueAtTime(0, now + start);
+          g.gain.linearRampToValueAtTime(0.3, now + start + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.001, now + end);
+          o.connect(g).connect(ctx.destination);
+          o.start(now + start); o.stop(now + end);
+        });
+      setTimeout(() => { try { ctx.close(); } catch {} }, 1500);
+    } catch {}
+  }, []);
+
+  // --- Modal helpers ---
+  const openModal = useCallback((type: ModalType, alert: CriticalAlert) => {
+    setModalType(type);
+    setModalAlert(alert);
+    setModalOpen(true);
+    if (type === "critical") playCriticalSiren();
+    else if (type === "allclear") playReliefSound();
+  }, [playCriticalSiren, playReliefSound]);
+
+  const dismissModal = useCallback(() => {
+    stopSiren();
+    if (modalAlert && modalType === "critical") dismissedIds.current.add(modalAlert.id);
+    if (thankYouTimer.current) clearTimeout(thankYouTimer.current);
+    setModalOpen(false);
+    setModalType(null);
+    setModalAlert(null);
+  }, [modalAlert, modalType, stopSiren]);
+
+  // --- Crisis mode transition: auto-dismiss critical, show all-clear ---
   useEffect(() => {
+    if (prevCrisisMode.current && !crisisMode) {
+      stopSiren();
+      // Replace current modal with all-clear
+      setModalType("allclear");
+      setModalAlert(allClearAlert);
+      setModalOpen(true);
+      playReliefSound();
+      if (thankYouTimer.current) clearTimeout(thankYouTimer.current);
+      thankYouTimer.current = setTimeout(() => {
+        setModalOpen(false); setModalType(null); setModalAlert(null);
+      }, 5 * 60 * 1000);
+    }
+    prevCrisisMode.current = crisisMode;
+    return () => { if (thankYouTimer.current) clearTimeout(thankYouTimer.current); };
+  }, [crisisMode, stopSiren, playReliefSound]);
+
+  // --- Auto-open modal for new alerts ---
+  useEffect(() => {
+    // Critical alerts
     const criticals = alerts.filter(
-      (a) => a.severity === "critical"
-        && !dismissedCriticalIds.current.has(a.id)
-        && !shownCriticalIds.current.has(a.id)
+      (a) => a.severity === "critical" && !dismissedIds.current.has(a.id) && !shownIds.current.has(a.id)
     );
     if (criticals.length > 0) {
-      shownCriticalIds.current.add(criticals[0].id);
-      setCriticalModalAlert(criticals[0]);
-      setCriticalModalOpen(true);
-      playCriticalSiren();
+      shownIds.current.add(criticals[0].id);
+      openModal("critical", criticals[0]);
+      return;
+    }
+    // All Clear alerts (detected by title pattern)
+    const allClears = alerts.filter(
+      (a) => !shownIds.current.has(a.id)
+        && (a.title.toLowerCase().includes("thank you for your cooperation")
+          || a.title.toLowerCase().includes("situation is currently safe"))
+    );
+    if (allClears.length > 0) {
+      shownIds.current.add(allClears[0].id);
+      openModal("allclear", allClears[0]);
+      if (thankYouTimer.current) clearTimeout(thankYouTimer.current);
+      thankYouTimer.current = setTimeout(() => {
+        setModalOpen(false); setModalType(null); setModalAlert(null);
+      }, 5 * 60 * 1000);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiAlerts]);
 
-  const dismissCriticalModal = useCallback(() => {
-    stopSiren();
-    if (criticalModalAlert) {
-      dismissedCriticalIds.current.add(criticalModalAlert.id);
-    }
-    setCriticalModalOpen(false);
-    setCriticalModalAlert(null);
-  }, [criticalModalAlert, stopSiren]);
-
-  // Auto-rotate every 4 seconds
+  // Auto-rotate banner
   useEffect(() => {
     if (paused) return;
-    const id = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % alerts.length);
-    }, 4000);
+    const id = setInterval(() => setActiveIndex((prev) => (prev + 1) % alerts.length), 4000);
     return () => clearInterval(id);
   }, [paused, alerts.length]);
 
@@ -252,103 +339,111 @@ export default function AlertBanner() {
   const current = alerts[activeIndex % alerts.length];
   if (!current) return null;
   const s = severityConfig[current.severity] || severityConfig.advisory;
+  const theme = modalType ? modalTheme[modalType] : null;
 
   return (
     <>
-      {/* Critical Alert Modal */}
-      <Dialog open={criticalModalOpen} onOpenChange={(open) => { if (!open) dismissCriticalModal(); }}>
-        <DialogContent
-          showCloseButton={false}
-          className="sm:max-w-xl border-danger/40 bg-[#0a0a0e] shadow-[0_0_60px_rgba(255,71,87,0.15)] p-5"
-        >
-          {/* Pulsing red header */}
-          <div className="flex flex-col items-center gap-3 pt-2">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-danger/20 animate-ping" />
-              <div className="relative w-14 h-14 rounded-full bg-danger/20 flex items-center justify-center border border-danger/30">
-                <Siren className="w-7 h-7 text-danger" weight="duotone" />
-              </div>
-            </div>
-            <Badge className="bg-danger text-white border-0 text-[10px] font-bold tracking-widest px-3">
-              CRITICAL ALERT
-            </Badge>
-          </div>
-
-          {criticalModalAlert && (
-            <div className="space-y-4">
-              {/* English */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[8px] border-danger/30 text-danger bg-danger/10">
-                    {criticalModalAlert.category}
-                  </Badge>
-                  <span className="text-[9px] font-mono text-muted-foreground">
-                    {criticalModalAlert.source}
-                  </span>
+      {/* Unified Alert Modal (critical OR all-clear) */}
+      {theme && (
+        <Dialog open={modalOpen} onOpenChange={(open) => { if (!open) dismissModal(); }}>
+          <DialogContent
+            showCloseButton={false}
+            className={cn("sm:max-w-xl max-h-[70vh] bg-[#0a0a0e] p-0 flex flex-col", theme.borderColor, theme.shadowTint)}
+          >
+            {/* Fixed header */}
+            <div className={cn("flex flex-col items-center gap-2.5 pt-5 pb-3 px-5 shrink-0 border-b", theme.divider)}>
+              <div className="relative">
+                <div className={cn("absolute inset-0 rounded-full animate-ping", theme.bgTint)}
+                  style={modalType === "allclear" ? { animationDuration: "2s" } : undefined} />
+                <div className={cn("relative w-12 h-12 rounded-full flex items-center justify-center border", theme.bgTint, theme.borderTint)}>
+                  <theme.Icon className={cn("w-6 h-6", theme.colorClass)} weight="duotone" />
                 </div>
-                <h3 className="text-sm font-semibold text-danger leading-snug">
-                  {criticalModalAlert.title}
-                </h3>
-                {criticalModalAlert.description && (
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {criticalModalAlert.description}
+              </div>
+              <Badge className={cn("text-white border-0 text-[10px] font-bold tracking-widest px-3", theme.badgeBg)}>
+                {theme.label}
+              </Badge>
+            </div>
+
+            {/* Scrollable middle */}
+            {modalAlert && (
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 scrollbar-none">
+                {/* English */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={cn("text-[8px]", theme.badgeBorder, theme.badgeText, theme.badgeTintBg)}>
+                      {modalAlert.category}
+                    </Badge>
+                    <span className="text-[9px] font-mono text-muted-foreground">{modalAlert.source}</span>
+                  </div>
+                  <h3 className={cn("text-sm font-semibold leading-snug", theme.colorClass)}>
+                    {modalAlert.title}
+                  </h3>
+                  {modalAlert.description && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">{modalAlert.description}</p>
+                  )}
+                </div>
+
+                {/* Arabic */}
+                {modalAlert.titleAr && (
+                  <div className={cn("space-y-2 border-t pt-3", theme.divider)} dir="rtl">
+                    <h3 className={cn("text-sm font-semibold leading-snug text-right", theme.colorClass)}>
+                      {modalAlert.titleAr}
+                    </h3>
+                    {modalAlert.descriptionAr && (
+                      <p className="text-xs text-muted-foreground leading-relaxed text-right">{modalAlert.descriptionAr}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Meta */}
+                <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground border-t border-border/50 pt-2">
+                  <div className="flex items-center gap-1.5">
+                    <MapPinIcon className="w-2.5 h-2.5" weight="bold" />
+                    {modalAlert.regions.join(", ")}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <ClockIcon className="w-2.5 h-2.5" weight="bold" />
+                    {mounted ? formatTimeAgo(modalAlert.issuedAt) : "..."}
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                <div className={cn("border rounded-lg p-3 space-y-1.5", theme.infoBg, theme.infoBorder)}>
+                  <p className={cn("text-[10px] font-bold uppercase tracking-wider", theme.colorClass)}>
+                    {theme.instructionsTitle}
+                  </p>
+                  <ul className="text-[11px] text-foreground/80 space-y-1 list-none">
+                    {theme.instructions.map((inst, i) => (
+                      <li key={i}>{inst.text} <strong className={theme.colorClass}>{inst.highlight}</strong></li>
+                    ))}
+                  </ul>
+                  <div className="flex gap-4 pt-1 text-[9px] font-mono text-muted-foreground">
+                    <span>Emergency <strong className={theme.colorClass}>999</strong></span>
+                    <span>Civil Defense <strong className={theme.colorClass}>997</strong></span>
+                    <span>Ambulance <strong className={theme.colorClass}>998</strong></span>
+                  </div>
+                </div>
+
+                {modalType === "allclear" && (
+                  <p className="text-[9px] text-muted-foreground/50 font-mono text-center">
+                    This message will auto-dismiss in 5 minutes
                   </p>
                 )}
               </div>
+            )}
 
-              {/* Arabic */}
-              {criticalModalAlert.titleAr && (
-                <div className="space-y-2 border-t border-danger/10 pt-3" dir="rtl">
-                  <h3 className="text-sm font-semibold text-danger leading-snug text-right">
-                    {criticalModalAlert.titleAr}
-                  </h3>
-                  {criticalModalAlert.descriptionAr && (
-                    <p className="text-xs text-muted-foreground leading-relaxed text-right">
-                      {criticalModalAlert.descriptionAr}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Meta */}
-              <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground border-t border-border/50 pt-2">
-                <div className="flex items-center gap-1.5">
-                  <MapPinIcon className="w-2.5 h-2.5" weight="bold" />
-                  {criticalModalAlert.regions.join(", ")}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <ClockIcon className="w-2.5 h-2.5" weight="bold" />
-                  {mounted ? formatTimeAgo(criticalModalAlert.issuedAt) : "..."}
-                </div>
-              </div>
-
-              {/* Safety instructions */}
-              <div className="bg-danger/5 border border-danger/15 rounded-lg p-3 space-y-1.5">
-                <p className="text-[10px] font-bold text-danger uppercase tracking-wider">Immediate Actions</p>
-                <ul className="text-[11px] text-foreground/80 space-y-1 list-none">
-                  <li>Move away from <strong className="text-danger">windows, glass & doors</strong></li>
-                  <li>Seek shelter in an <strong className="text-danger">interior room or basement</strong></li>
-                  <li>Stay away from <strong className="text-danger">open areas & balconies</strong></li>
-                  <li>Await official instructions from <strong>MOI / NCEMA</strong></li>
-                </ul>
-                <div className="flex gap-4 pt-1 text-[9px] font-mono text-muted-foreground">
-                  <span>Emergency <strong className="text-danger">999</strong></span>
-                  <span>Civil Defense <strong className="text-danger">997</strong></span>
-                  <span>Ambulance <strong className="text-danger">998</strong></span>
-                </div>
-              </div>
-
-              {/* Dismiss */}
+            {/* Fixed footer */}
+            <div className={cn("shrink-0 px-5 pb-5 pt-3 border-t", theme.divider)}>
               <button
-                onClick={dismissCriticalModal}
-                className="w-full py-2.5 rounded-lg bg-danger/10 hover:bg-danger/20 border border-danger/20 text-danger text-xs font-semibold transition-colors cursor-pointer"
+                onClick={dismissModal}
+                className={cn("w-full py-2.5 rounded-lg border text-xs font-semibold transition-colors cursor-pointer", theme.btnBg, theme.colorClass)}
               >
                 Acknowledge & Dismiss
               </button>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Regular banner */}
       <div
@@ -363,14 +458,12 @@ export default function AlertBanner() {
       >
         <div className="max-w-[1920px] mx-auto px-2 sm:px-3 py-1 sm:py-1.5">
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Alert count badge */}
             <Badge variant="outline" className={cn("text-[7px] sm:text-[8px] gap-1 shrink-0 border-0 font-bold", s.bg, s.text)}>
               <WarningIcon className={cn("w-2.5 h-2.5", current.severity !== "advisory" && "pulse-live")} weight="bold" />
               <span className="hidden sm:inline">{alerts.length} ALERT{alerts.length > 1 ? "S" : ""}</span>
               <span className="sm:hidden">{alerts.length}</span>
             </Badge>
 
-            {/* Severity + category */}
             <Badge variant="outline" className={cn("text-[7px] shrink-0 border-0 font-bold", s.bg, s.text)}>
               {s.label}
             </Badge>
@@ -378,21 +471,16 @@ export default function AlertBanner() {
               {current.category}
             </Badge>
 
-            {/* Icon + title */}
             <div key={current.id} className="flex items-center gap-1.5 flex-1 min-w-0 animate-in fade-in slide-in-from-bottom-1 duration-300">
               <span className={cn("shrink-0", s.text)}>{current.icon}</span>
-              <p className={cn("text-[11px] font-medium truncate", s.text)}>
-                {current.title}
-              </p>
+              <p className={cn("text-[11px] font-medium truncate", s.text)}>{current.title}</p>
             </div>
 
-            {/* Clickable to reopen critical modal */}
             {current.severity === "critical" && (
               <button
                 onClick={() => {
-                  dismissedCriticalIds.current.delete(current.id);
-                  setCriticalModalAlert(current);
-                  setCriticalModalOpen(true);
+                  dismissedIds.current.delete(current.id);
+                  openModal("critical", current);
                 }}
                 className="text-[8px] text-danger font-bold hover:underline cursor-pointer shrink-0"
               >
@@ -400,13 +488,11 @@ export default function AlertBanner() {
               </button>
             )}
 
-            {/* Region */}
             <span className="hidden lg:flex items-center gap-0.5 text-[7px] font-mono text-muted-foreground shrink-0">
               <MapPinIcon className="w-2 h-2" weight="bold" />
               {current.regions.join(" / ")}
             </span>
 
-            {/* Time */}
             <div className="hidden md:flex items-center gap-1 shrink-0 text-[7px] font-mono text-muted-foreground">
               <ClockIcon className="w-2 h-2" weight="bold" />
               {mounted ? formatTimeAgo(current.issuedAt) : "..."}
@@ -416,7 +502,6 @@ export default function AlertBanner() {
               })} GST
             </div>
 
-            {/* Dot indicators */}
             <div className="flex items-center gap-1 shrink-0 ml-auto">
               {alerts.map((a, i) => {
                 const ac = severityConfig[a.severity] || severityConfig.advisory;

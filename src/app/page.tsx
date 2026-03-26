@@ -38,7 +38,7 @@ export default function Dashboard() {
   const [tab, setTab] = useState<RightTab>("news");
   const [evacOpen, setEvacOpen] = useState(false);
   const [shelterOpen, setShelterOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState<"stats" | "content" | null>(null);
+  const [collapsed, setCollapsed] = useState<"stats" | "content" | "both" | null>(null);
   const [maximized, setMaximized] = useState(false);
 
   const tabLabels: Record<RightTab, string> = { news: "News & Updates", connectivity: "Route Connectivity", threats: "Threat Timeline", intel: "Latest Intel" };
@@ -69,9 +69,9 @@ export default function Dashboard() {
 
               {/* Stats carousel - collapsible via click */}
               <div className="transition-all duration-300 ease-in-out overflow-hidden rounded-lg">
-                {collapsed === "stats" ? (
+                {collapsed === "stats" || collapsed === "both" ? (
                   <button
-                    onClick={() => setCollapsed(null)}
+                    onClick={() => setCollapsed(collapsed === "both" ? "content" : null)}
                     className="w-full h-9 bg-card border border-border/50 rounded-lg flex items-center justify-between px-3 hover:bg-secondary/50 transition-colors"
                   >
                     <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Stats & Status</span>
@@ -81,7 +81,7 @@ export default function Dashboard() {
                   <div className="relative">
                     <StatsCarousel />
                     <button
-                      onClick={() => setCollapsed("stats")}
+                      onClick={() => setCollapsed(collapsed === "content" ? "both" : "stats")}
                       className="absolute top-1.5 right-10 z-10 h-5 w-5 rounded flex items-center justify-center bg-card/80 backdrop-blur-sm border border-border/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       title="Collapse stats"
                     >
@@ -112,21 +112,21 @@ export default function Dashboard() {
 
                 {/* Collapse/expand content toggle */}
                 <button
-                  onClick={() => setCollapsed(collapsed === "content" ? null : "content")}
+                  onClick={() => setCollapsed(collapsed === "content" || collapsed === "both" ? null : "content")}
                   className={cn(
                     "shrink-0 h-7 w-7 rounded-md flex items-center justify-center transition-colors border border-border/50",
-                    collapsed === "content" ? "bg-teal/15 text-teal border-teal/30" : "bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                    collapsed === "content" || collapsed === "both" ? "bg-teal/15 text-teal border-teal/30" : "bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/80"
                   )}
-                  title={collapsed === "content" ? "Expand feed" : "Collapse feed"}
+                  title={collapsed === "content" || collapsed === "both" ? "Expand feed" : "Collapse feed"}
                 >
-                  {collapsed === "content"
+                  {collapsed === "content" || collapsed === "both"
                     ? <CaretDownIcon className="w-3.5 h-3.5" weight="bold" />
                     : <CaretUpIcon className="w-3.5 h-3.5" weight="bold" />}
                 </button>
 
                 {/* Maximize button */}
                 <button
-                  onClick={() => setMaximized(true)}
+                  onClick={() => { setMaximized(true); setCollapsed("both"); }}
                   className="shrink-0 h-7 w-7 rounded-md flex items-center justify-center bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors border border-border/50"
                   title="Expand to full view"
                 >
@@ -153,9 +153,9 @@ export default function Dashboard() {
               {/* Tab content - collapsible via click, takes remaining space */}
               <div className={cn(
                 "transition-all duration-300 ease-in-out overflow-hidden",
-                collapsed === "content" ? "lg:h-9 lg:min-h-[36px]" : "flex-1 min-h-[50vh] sm:min-h-[40vh] lg:min-h-0"
+                collapsed === "content" || collapsed === "both" ? "lg:h-9 lg:min-h-[36px]" : "flex-1 min-h-[50vh] sm:min-h-[40vh] lg:min-h-0"
               )}>
-                {collapsed === "content" ? (
+                {collapsed === "content" || collapsed === "both" ? (
                   <button
                     onClick={() => setCollapsed(null)}
                     className="w-full h-9 bg-card border border-border/50 rounded-lg flex items-center justify-between px-3 hover:bg-secondary/50 transition-colors"
@@ -193,7 +193,7 @@ export default function Dashboard() {
 
       {/* Maximize modal for feed/tab content */}
       {maximized && (
-        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+        <div className="fixed inset-0 z-[9000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
           onClick={(e) => { if (e.target === e.currentTarget) setMaximized(false); }}>
           <div className="w-full max-w-3xl h-[85vh] bg-card border border-border rounded-xl flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
             {/* Modal header */}
