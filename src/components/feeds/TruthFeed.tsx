@@ -23,6 +23,68 @@ interface TruthItem {
   source: "govt" | "atc" | "ai";
 }
 
+// Human-readable labels and sentence templates for status keys
+const statusLabels: Record<string, { label: string; source: "atc" | "govt"; format: (val: string, tooltip: string) => string }> = {
+  airspace: {
+    label: "UAE Airspace",
+    source: "atc",
+    format: (val, tip) => {
+      const match = tip.match(/(\d+)\s*aircraft/i);
+      const count = match ? match[1] : null;
+      if (val === "OPEN") return `UAE airspace is open${count ? ` with ${count} aircraft tracked` : ""}`;
+      return `UAE airspace status: ${val}`;
+    },
+  },
+  dxb: {
+    label: "Dubai Intl (DXB)",
+    source: "atc",
+    format: (val) => val === "LOW" ? "Dubai International (DXB) operating normally, low delays" : `Dubai International (DXB) delay level: ${val}`,
+  },
+  auh: {
+    label: "Abu Dhabi Intl (AUH)",
+    source: "atc",
+    format: (val) => val === "LOW" ? "Abu Dhabi International (AUH) operating normally, low delays" : `Abu Dhabi International (AUH) delay level: ${val}`,
+  },
+  dwc: {
+    label: "Al Maktoum (DWC)",
+    source: "atc",
+    format: (val) => val === "LOW" ? "Al Maktoum International (DWC) operating normally" : `Al Maktoum (DWC) delay level: ${val}`,
+  },
+  shj: {
+    label: "Sharjah (SHJ)",
+    source: "atc",
+    format: (val) => val === "LOW" ? "Sharjah Airport (SHJ) operating normally" : `Sharjah Airport (SHJ) delay level: ${val}`,
+  },
+  threat: {
+    label: "Threat Level",
+    source: "govt",
+    format: (val, tip) => {
+      if (val === "NORMAL") return "No active threats detected";
+      if (val === "ELEVATED") return "Threat level elevated. Monitoring ongoing";
+      return "Threat level critical. Follow official guidance";
+    },
+  },
+  gps: {
+    label: "GPS Status",
+    source: "govt",
+    format: (val) => val === "NORMAL" ? "GPS systems operating normally across the UAE" : "GPS disruptions reported. Navigation may be affected",
+  },
+  weather_rain: {
+    label: "Rainfall",
+    source: "govt",
+    format: (val) => {
+      if (val === "WARNING") return "Heavy rainfall warning in effect";
+      if (val === "CAUTION") return "Moderate rainfall advisory. Exercise caution";
+      return "Light rainfall reported in some areas";
+    },
+  },
+  weather_thunder: {
+    label: "Thunderstorm",
+    source: "govt",
+    format: (val) => val === "WATCH" ? "Thunderstorm watch active. Avoid open areas" : "Thunderstorm conditions improving",
+  },
+};
+
 // Build ground truth dynamically from live status + alerts data
 function buildGroundTruth(
   statusItems: any[],
@@ -30,21 +92,31 @@ function buildGroundTruth(
   lastSynced: string | null,
 ): { items: TruthItem[]; lastUpdated: string; sources: number } {
   const items: TruthItem[] = [];
+  const seen = new Set<string>();
 
   // Derive facts from status items
   for (const s of statusItems) {
     if (!s.key || !s.value) continue;
     const key = s.key.toLowerCase();
-    const val = s.value.toLowerCase();
+    const config = statusLabels[key];
+    if (!config) continue;
+
+    // Skip duplicate airport entries if we already have airspace
+    if (seen.has(key)) continue;
+    seen.add(key);
+
     const status: TruthStatus = s.status === "green" || s.status === "normal" ? "confirmed"
       : s.status === "amber" || s.status === "warning" || s.status === "degraded" ? "developing"
       : "cleared";
-    const source: "govt" | "atc" = key.includes("airspace") || key.includes("flight") || key.includes("notam") ? "atc" : "govt";
 
-    items.push({ text: `${s.key}: ${s.value}${s.tooltip ? ` — ${s.tooltip}` : ""}`, status, source });
+    items.push({
+      text: config.format(s.value, s.tooltip || ""),
+      status,
+      source: config.source,
+    });
   }
 
-  // Derive facts from active alerts
+  // Derive facts from active alerts (skip if already covered by status)
   for (const a of (Array.isArray(alerts) ? alerts : []).slice(0, 3)) {
     if (!a.title) continue;
     const status: TruthStatus = a.severity === "critical" ? "developing" : a.severity === "warning" || a.severity === "high" ? "developing" : "confirmed";
