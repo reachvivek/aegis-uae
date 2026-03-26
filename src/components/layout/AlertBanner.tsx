@@ -79,6 +79,7 @@ export default function AlertBanner() {
   const [criticalModalOpen, setCriticalModalOpen] = useState(false);
   const [criticalModalAlert, setCriticalModalAlert] = useState<CriticalAlert | null>(null);
   const dismissedCriticalIds = useRef<Set<string>>(new Set());
+  const sirenCtxRef = useRef<AudioContext | null>(null);
 
   // Map API alerts to component format, fallback to mock data
   const alerts: CriticalAlert[] = (() => {
@@ -135,10 +136,20 @@ export default function AlertBanner() {
 
   useEffect(() => setMounted(true), []);
 
-  // Play loud continuous siren for critical alerts (~5 seconds)
+  // Stop any playing siren immediately
+  const stopSiren = useCallback(() => {
+    if (sirenCtxRef.current) {
+      try { sirenCtxRef.current.close(); } catch {}
+      sirenCtxRef.current = null;
+    }
+  }, []);
+
+  // Play loud continuous siren for critical alerts (max 5 seconds, stoppable)
   const playCriticalSiren = useCallback(() => {
+    stopSiren(); // kill any existing siren first
     try {
       const ctx = new AudioContext();
+      sirenCtxRef.current = ctx;
       const now = ctx.currentTime;
       const duration = 5;
 
@@ -146,7 +157,6 @@ export default function AlertBanner() {
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = "sawtooth";
-      // Sweep between 600Hz and 1200Hz repeatedly
       for (let t = 0; t < duration; t += 0.5) {
         osc1.frequency.setValueAtTime(600, now + t);
         osc1.frequency.linearRampToValueAtTime(1200, now + t + 0.25);
@@ -159,7 +169,7 @@ export default function AlertBanner() {
       osc1.start(now);
       osc1.stop(now + duration);
 
-      // Second harmonic for fullness
+      // Second harmonic
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.type = "square";
@@ -175,12 +185,11 @@ export default function AlertBanner() {
       osc2.start(now);
       osc2.stop(now + duration);
 
-      // Pulsing low-frequency alarm undertone
+      // Pulsing bass
       const osc3 = ctx.createOscillator();
       const gain3 = ctx.createGain();
       osc3.type = "sine";
       osc3.frequency.value = 150;
-      // Pulse the volume for urgency
       for (let t = 0; t < duration; t += 0.25) {
         gain3.gain.setValueAtTime(0.25, now + t);
         gain3.gain.linearRampToValueAtTime(0.05, now + t + 0.125);
@@ -191,31 +200,43 @@ export default function AlertBanner() {
       osc3.start(now);
       osc3.stop(now + duration);
 
-      setTimeout(() => ctx.close(), (duration + 0.5) * 1000);
+      // Auto-cleanup after duration
+      setTimeout(() => {
+        if (sirenCtxRef.current === ctx) {
+          try { ctx.close(); } catch {}
+          sirenCtxRef.current = null;
+        }
+      }, (duration + 0.5) * 1000);
     } catch {
       // Web Audio not supported
     }
-  }, []);
+  }, [stopSiren]);
 
-  // Auto-open modal for new critical alerts
+  // Auto-open modal for new critical alerts (track by alert IDs to avoid re-render loops)
+  const shownCriticalIds = useRef<Set<string>>(new Set());
   useEffect(() => {
     const criticals = alerts.filter(
-      (a) => a.severity === "critical" && !dismissedCriticalIds.current.has(a.id)
+      (a) => a.severity === "critical"
+        && !dismissedCriticalIds.current.has(a.id)
+        && !shownCriticalIds.current.has(a.id)
     );
     if (criticals.length > 0) {
+      shownCriticalIds.current.add(criticals[0].id);
       setCriticalModalAlert(criticals[0]);
       setCriticalModalOpen(true);
       playCriticalSiren();
     }
-  }, [alerts, playCriticalSiren]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiAlerts]);
 
   const dismissCriticalModal = useCallback(() => {
+    stopSiren();
     if (criticalModalAlert) {
       dismissedCriticalIds.current.add(criticalModalAlert.id);
     }
     setCriticalModalOpen(false);
     setCriticalModalAlert(null);
-  }, [criticalModalAlert]);
+  }, [criticalModalAlert, stopSiren]);
 
   // Auto-rotate every 4 seconds
   useEffect(() => {
@@ -238,7 +259,7 @@ export default function AlertBanner() {
       <Dialog open={criticalModalOpen} onOpenChange={(open) => { if (!open) dismissCriticalModal(); }}>
         <DialogContent
           showCloseButton={false}
-          className="sm:max-w-lg border-danger/40 bg-[#0a0a0e] shadow-[0_0_60px_rgba(255,71,87,0.15)]"
+          className="sm:max-w-xl border-danger/40 bg-[#0a0a0e] shadow-[0_0_60px_rgba(255,71,87,0.15)] p-5"
         >
           {/* Pulsing red header */}
           <div className="flex flex-col items-center gap-3 pt-2">
