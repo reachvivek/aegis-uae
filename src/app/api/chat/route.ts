@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
-import { getCachedData } from "@/lib/turso";
+import { getCachedData, getDb } from "@/lib/turso";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -71,9 +71,22 @@ RULES:
 14. Use markdown formatting: **bold** for key values, bullet points for lists.`;
 }
 
+// Store a message in the conversations table (fire-and-forget)
+async function storeMessage(sessionId: string, role: string, content: string, hasImage: boolean) {
+  try {
+    const db = getDb();
+    await db.execute({
+      sql: `INSERT INTO conversations (session_id, role, content, has_image, created_at) VALUES (?, ?, ?, ?, ?)`,
+      args: [sessionId, role, content.slice(0, 2000), hasImage ? 1 : 0, new Date().toISOString()],
+    });
+  } catch {
+    // Non-blocking - don't fail the chat if storage fails
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    const { messages, imageDescription } = await request.json();
+    const { messages, imageDescription, sessionId } = await request.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: "Messages array required" }, { status: 400 });
@@ -82,6 +95,12 @@ export async function POST(request: Request) {
     const groq = getGroqClient();
     if (!groq) {
       return NextResponse.json({ error: "Chat service not configured" }, { status: 503 });
+    }
+
+    // Store the latest user message
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.role === "user" && sessionId) {
+      storeMessage(sessionId, "user", lastMsg.content || "", !!lastMsg.hasImage);
     }
 
     const systemPrompt = await buildSystemPrompt();
@@ -112,6 +131,11 @@ export async function POST(request: Request) {
     });
 
     const reply = completion.choices[0]?.message?.content || "I'm unable to process your request right now. Please try again.";
+
+    // Store assistant reply
+    if (sessionId) {
+      storeMessage(sessionId, "assistant", reply, false);
+    }
 
     return NextResponse.json({ reply });
   } catch (err: any) {

@@ -16,7 +16,8 @@ export async function GET() {
       headline: a.title,
       source: a.source,
       severity: a.severity || "info",
-      timestamp: a.pubDate,
+      timestamp: a.publishedAt || a.pubDate,
+      link: a.link || "",
     }));
 
     return NextResponse.json({ items }, {

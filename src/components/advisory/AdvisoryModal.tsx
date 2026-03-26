@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
   PaperPlaneRightIcon, AirplaneTiltIcon, ShieldIcon, WarningIcon,
-  SpinnerGapIcon, ChatCircleIcon, ImageIcon, XCircleIcon,
+  SpinnerGapIcon, ChatCircleIcon, ImageIcon, XCircleIcon, PhoneIcon,
 } from "@phosphor-icons/react";
 
 interface Props {
@@ -63,22 +63,20 @@ export default function AdvisoryModal({ isOpen, onClose }: Props) {
   ]);
   const [loading, setLoading] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [showHelplines, setShowHelplines] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const sessionIdRef = useRef(typeof crypto !== "undefined" ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom
-  const scrollToBottom = useCallback(() => {
-    if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector("[data-radix-scroll-area-viewport]");
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
-    }
-  }, []);
-
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, loading, scrollToBottom]);
+    // Small delay to ensure DOM has updated
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [messages, loading]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -122,6 +120,7 @@ export default function AdvisoryModal({ isOpen, onClose }: Props) {
         body: JSON.stringify({
           messages: history,
           imageDescription: image ? msg || "User attached a screenshot" : undefined,
+          sessionId: sessionIdRef.current,
         }),
       });
 
@@ -161,7 +160,7 @@ export default function AdvisoryModal({ isOpen, onClose }: Props) {
         </DialogHeader>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 min-h-0" ref={scrollAreaRef}>
+        <ScrollArea className="flex-1 min-h-0">
           <div className="p-4 space-y-3">
             {messages.map((m, i) => (
               <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
@@ -190,6 +189,7 @@ export default function AdvisoryModal({ isOpen, onClose }: Props) {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
 
@@ -220,6 +220,33 @@ export default function AdvisoryModal({ isOpen, onClose }: Props) {
           </div>
         )}
 
+        {/* Helpline numbers - collapsible */}
+        {showHelplines && (
+          <div className="px-4 pb-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-200">
+            <div className="bg-danger-dim/30 border border-danger/15 rounded-lg p-2.5">
+              <p className="text-[8px] font-bold text-danger uppercase mb-1.5">Emergency Helplines</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { name: "Police", number: "999" },
+                  { name: "Ambulance", number: "998" },
+                  { name: "Civil Defense", number: "997" },
+                  { name: "Coast Guard", number: "996" },
+                  { name: "NCEMA Hotline", number: "800-NCEMA" },
+                  { name: "DHA Health", number: "800-342" },
+                ].map((h) => (
+                  <a key={h.number} href={`tel:${h.number}`} className="flex items-center gap-1.5 bg-card/50 rounded-md px-2 py-1.5 hover:bg-card transition-colors">
+                    <PhoneIcon className="w-2.5 h-2.5 text-danger shrink-0" weight="bold" />
+                    <div className="min-w-0">
+                      <p className="text-[8px] font-bold text-foreground leading-none">{h.number}</p>
+                      <p className="text-[6px] text-muted-foreground">{h.name}</p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Input */}
         <div className="p-3 border-t border-border shrink-0">
           <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2 border border-border focus-within:border-teal/40 transition-colors">
@@ -236,6 +263,13 @@ export default function AdvisoryModal({ isOpen, onClose }: Props) {
               title="Attach screenshot"
             >
               <ImageIcon className="w-4 h-4" weight="duotone" />
+            </button>
+            <button
+              onClick={() => setShowHelplines(!showHelplines)}
+              className={cn("shrink-0 transition-colors", showHelplines ? "text-danger" : "text-muted-foreground hover:text-danger")}
+              title="Emergency helplines"
+            >
+              <PhoneIcon className="w-4 h-4" weight="duotone" />
             </button>
 
             <input type="text" value={input} onChange={(e) => setInput(e.target.value)}

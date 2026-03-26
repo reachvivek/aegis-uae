@@ -60,6 +60,36 @@ export async function initializeSchema() {
       channel TEXT NOT NULL,
       changed_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS page_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      path TEXT NOT NULL DEFAULT '/',
+      referrer TEXT,
+      user_agent TEXT,
+      country TEXT,
+      city TEXT,
+      device TEXT,
+      session_id TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS conversations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      has_image INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS interactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      target TEXT,
+      meta TEXT,
+      session_id TEXT,
+      created_at TEXT NOT NULL
+    );
   `);
 
   console.log("[schema] Database tables initialized");

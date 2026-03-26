@@ -102,11 +102,11 @@ const zones = [
 
 type LayerToggle = "flights" | "weather" | "airspace" | "seismic";
 
-const layerConfig: Record<LayerToggle, { Icon: React.ComponentType<any>; label: string }> = {
-  flights: { Icon: AirplaneTiltIcon, label: "Flights" },
-  weather: { Icon: CloudRainIcon, label: "Weather" },
-  airspace: { Icon: WarningIcon, label: "Airspace" },
-  seismic: { Icon: WaveSineIcon, label: "Seismic" },
+const layerConfig: Record<LayerToggle, { Icon: React.ComponentType<any>; label: string; color: string }> = {
+  flights: { Icon: AirplaneTiltIcon, label: "Flights", color: "bg-teal" },
+  weather: { Icon: CloudRainIcon, label: "Weather", color: "bg-blue-400" },
+  airspace: { Icon: WarningIcon, label: "Airspace", color: "bg-amber" },
+  seismic: { Icon: WaveSineIcon, label: "Seismic", color: "bg-yellow-400" },
 };
 
 export default function StabilityMap() {
@@ -456,7 +456,7 @@ export default function StabilityMap() {
         {/* Layer toggles */}
         <div className="absolute top-2 left-2 z-[1000] flex flex-col gap-1">
           {(["flights", "weather", "airspace", "seismic"] as const).map((layer) => {
-            const { Icon, label } = layerConfig[layer];
+            const { Icon, label, color } = layerConfig[layer];
             const active = activeLayers.has(layer);
             return (
               <Button key={layer} variant={active ? "secondary" : "ghost"} size="sm"
@@ -465,7 +465,7 @@ export default function StabilityMap() {
                   active ? "bg-secondary/90 text-foreground" : "bg-background/60 backdrop-blur-sm text-muted-foreground/50"
                 )}
                 onClick={() => toggleLayer(layer)}>
-                <span className={cn("w-1.5 h-1.5 rounded-full shrink-0 transition-colors", active ? "bg-teal" : "bg-muted-foreground/30")} />
+                <span className={cn("w-1.5 h-1.5 rounded-full shrink-0 transition-colors", active ? color : "bg-muted-foreground/30")} />
                 <Icon className={cn("w-3 h-3 transition-opacity", active ? "opacity-100" : "opacity-40")} weight="bold" />
                 {label}
               </Button>

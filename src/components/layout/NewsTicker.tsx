@@ -11,9 +11,10 @@ import { useNewsTicker } from "@/hooks/useNewsTicker";
 interface TickerItem {
   text: string;
   severity: "breaking" | "alert" | "info";
-  time: string; // ISO or relative label
+  time: string;
   detail: string;
   source: string;
+  link?: string;
 }
 
 const fallbackTickerItems: TickerItem[] = [
@@ -123,6 +124,7 @@ export default function NewsTicker() {
         time: item.timestamp ? new Date(item.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "",
         detail: item.detail || "",
         source: item.source || "Feed",
+        link: item.link || "",
       }))
     : fallbackTickerItems;
 
@@ -165,9 +167,19 @@ export default function NewsTicker() {
             </span>
           }
           footer={
-            <Button variant="outline" size="sm" onClick={() => setSelected(null)}>
-              Close
-            </Button>
+            <div className="flex items-center gap-2 w-full">
+              {selected.link && (
+                <a href={selected.link} target="_blank" rel="noopener noreferrer">
+                  <Button variant="default" size="sm" className="gap-1 bg-teal hover:bg-teal/90 text-background">
+                    Read Full Article
+                  </Button>
+                </a>
+              )}
+              <div className="flex-1" />
+              <Button variant="outline" size="sm" onClick={() => setSelected(null)}>
+                Close
+              </Button>
+            </div>
           }
         >
           <div className="space-y-3">
@@ -179,11 +191,17 @@ export default function NewsTicker() {
                 {selected.detail}
               </p>
             )}
-            {(!selected.detail || selected.detail === selected.text) && (
-              <p className="text-xs text-muted-foreground italic">
-                Full article details not available. Check the source ({selected.source}) for complete coverage.
-              </p>
-            )}
+            {!selected.detail || selected.detail === selected.text ? (
+              selected.link ? (
+                <p className="text-xs text-muted-foreground">
+                  Click "Read Full Article" below to view the complete story from {selected.source}.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">
+                  Full article details not available. Check the source ({selected.source}) for complete coverage.
+                </p>
+              )
+            ) : null}
           </div>
         </StandardModal>
       )}

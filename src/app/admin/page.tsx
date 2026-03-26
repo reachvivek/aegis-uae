@@ -1,0 +1,406 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { cn } from "@/lib/utils";
+
+interface Overview {
+  totalViews: number;
+  totalConversations: number;
+  uniqueVisitors: number;
+  todayViews: number;
+  viewsByDay: { day: string; count: number }[];
+  devices: { device: string; count: number }[];
+  referrers: { referrer: string; count: number }[];
+}
+
+interface Session {
+  sessionId: string;
+  messages: number;
+  userMessages: number;
+  images: number;
+  startedAt: string;
+  lastActivity: string;
+}
+
+interface ChatMessage {
+  role: string;
+  content: string;
+  hasImage: number;
+  createdAt: string;
+}
+
+interface PopularQuery {
+  query: string;
+  count: number;
+}
+
+type Tab = "overview" | "conversations" | "queries" | "push-alert";
+
+export default function AdminPage() {
+  const [key, setKey] = useState("");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [selectedChat, setSelectedChat] = useState<ChatMessage[] | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState("");
+  const [queries, setQueries] = useState<PopularQuery[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [alertForm, setAlertForm] = useState({ severity: "critical", category: "THREAT", title: "", description: "", regions: "UAE", expiresInHours: 24 });
+  const [alertSent, setAlertSent] = useState("");
+
+  const fetchData = useCallback(async (section: string, params?: string) => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin?key=${encodeURIComponent(key)}&section=${section}${params || ""}`);
+      if (!res.ok) {
+        if (res.status === 401) { setAuthenticated(false); setError("Invalid key"); return null; }
+        throw new Error("Request failed");
+      }
+      return await res.json();
+    } catch {
+      setError("Failed to load data");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [key]);
+
+  const login = async () => {
+    const data = await fetchData("overview");
+    if (data) {
+      setAuthenticated(true);
+      setOverview(data);
+    }
+  };
+
+  useEffect(() => {
+    if (!authenticated) return;
+    if (tab === "overview") fetchData("overview").then((d) => d && setOverview(d));
+    if (tab === "conversations") fetchData("conversations").then((d) => d && setSessions(d.sessions || []));
+    if (tab === "queries") fetchData("popular-queries").then((d) => d && setQueries(d.queries || []));
+  }, [tab, authenticated, fetchData]);
+
+  const viewConversation = async (sessionId: string) => {
+    const data = await fetchData("conversation", `&sessionId=${sessionId}`);
+    if (data) {
+      setSelectedChat(data.messages);
+      setSelectedSessionId(sessionId);
+    }
+  };
+
+  if (!authenticated) {
+    return (
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-6 shadow-2xl">
+          <h1 className="text-lg font-bold text-white mb-1">AegisUAE Admin</h1>
+          <p className="text-xs text-[#7C7C8A] mb-4">Enter admin key to access analytics</p>
+          {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
+          <input
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && login()}
+            placeholder="Admin key"
+            className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40 mb-3"
+            autoFocus
+          />
+          <button onClick={login} disabled={!key || loading}
+            className="w-full bg-[#00E5B8] hover:bg-[#00E5B8]/90 text-[#050507] font-bold text-sm py-2 rounded-lg transition-colors disabled:opacity-50">
+            {loading ? "Checking..." : "Access Dashboard"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#050507] text-white">
+      {/* Header */}
+      <div className="border-b border-[#1E1E28] px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold"><span className="text-[#00E5B8]">Aegis</span>UAE Admin</h1>
+            <p className="text-[10px] text-[#7C7C8A] uppercase tracking-wider">Analytics & Conversations</p>
+          </div>
+          <a href="/" className="text-xs text-[#7C7C8A] hover:text-white transition-colors">Back to Dashboard</a>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-[#1E1E28] px-6">
+        <div className="max-w-6xl mx-auto flex gap-1">
+          {(["overview", "conversations", "queries", "push-alert"] as const).map((t) => (
+            <button key={t} onClick={() => { setTab(t); setSelectedChat(null); }}
+              className={cn(
+                "px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors border-b-2",
+                tab === t ? "border-[#00E5B8] text-[#00E5B8]" : "border-transparent text-[#7C7C8A] hover:text-white"
+              )}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-6xl mx-auto px-6 py-6">
+        {loading && <div className="text-center text-[#7C7C8A] text-sm py-8">Loading...</div>}
+        {error && <div className="text-center text-red-400 text-sm py-8">{error}</div>}
+
+        {/* Overview */}
+        {tab === "overview" && overview && !loading && (
+          <div className="space-y-6">
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Total Views", value: overview.totalViews, color: "text-[#00E5B8]" },
+                { label: "Today", value: overview.todayViews, color: "text-[#00E5B8]" },
+                { label: "Unique Visitors", value: overview.uniqueVisitors, color: "text-blue-400" },
+                { label: "Conversations", value: overview.totalConversations, color: "text-purple-400" },
+              ].map((s) => (
+                <div key={s.label} className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
+                  <p className="text-[10px] text-[#7C7C8A] uppercase tracking-wider mb-1">{s.label}</p>
+                  <p className={cn("text-2xl font-bold font-mono", s.color)}>{s.value.toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Views by day chart (simple bar chart) */}
+            {overview.viewsByDay.length > 0 && (
+              <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Views (Last 7 Days)</p>
+                <div className="flex items-end gap-2 h-32">
+                  {overview.viewsByDay.map((d) => {
+                    const max = Math.max(...overview.viewsByDay.map((v) => v.count as number), 1);
+                    const height = ((d.count as number) / max) * 100;
+                    return (
+                      <div key={d.day as string} className="flex-1 flex flex-col items-center gap-1">
+                        <span className="text-[9px] font-mono text-[#7C7C8A]">{d.count as number}</span>
+                        <div className="w-full rounded-t-md bg-[#00E5B8]/20 border border-[#00E5B8]/30 transition-all"
+                          style={{ height: `${Math.max(height, 4)}%` }} />
+                        <span className="text-[8px] font-mono text-[#7C7C8A]">{(d.day as string).slice(5)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Devices + Referrers side by side */}
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Devices</p>
+                <div className="space-y-2">
+                  {overview.devices.map((d) => (
+                    <div key={d.device as string} className="flex items-center justify-between">
+                      <span className="text-xs text-white capitalize">{(d.device as string) || "Unknown"}</span>
+                      <span className="text-xs font-mono text-[#00E5B8]">{d.count as number}</span>
+                    </div>
+                  ))}
+                  {overview.devices.length === 0 && <p className="text-xs text-[#7C7C8A]">No data yet</p>}
+                </div>
+              </div>
+              <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Top Referrers</p>
+                <div className="space-y-2">
+                  {overview.referrers.map((r) => (
+                    <div key={r.referrer as string} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-white truncate flex-1">{(r.referrer as string) || "Direct"}</span>
+                      <span className="text-xs font-mono text-blue-400 shrink-0">{r.count as number}</span>
+                    </div>
+                  ))}
+                  {overview.referrers.length === 0 && <p className="text-xs text-[#7C7C8A]">No referrer data yet</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Conversations */}
+        {tab === "conversations" && !loading && (
+          <div className="grid md:grid-cols-[300px_1fr] gap-4">
+            {/* Session list */}
+            <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#1E1E28]">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A]">Sessions ({sessions.length})</p>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto">
+                {sessions.map((s) => (
+                  <button key={s.sessionId} onClick={() => viewConversation(s.sessionId)}
+                    className={cn(
+                      "w-full text-left px-4 py-3 border-b border-[#1E1E28]/50 hover:bg-[#12121A] transition-colors",
+                      selectedSessionId === s.sessionId && "bg-[#12121A] border-l-2 border-l-[#00E5B8]"
+                    )}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono text-[#7C7C8A]">{s.sessionId.slice(0, 8)}...</span>
+                      <span className="text-[9px] font-mono text-[#00E5B8]">{s.messages} msgs</span>
+                    </div>
+                    <p className="text-[10px] text-[#7C7C8A]">
+                      {new Date(s.lastActivity).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      {(s.images as number) > 0 && <span className="ml-1 text-purple-400">({s.images} img)</span>}
+                    </p>
+                  </button>
+                ))}
+                {sessions.length === 0 && <p className="text-xs text-[#7C7C8A] p-4">No conversations yet</p>}
+              </div>
+            </div>
+
+            {/* Chat view */}
+            <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#1E1E28]">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A]">
+                  {selectedChat ? `Conversation - ${selectedSessionId.slice(0, 8)}` : "Select a session"}
+                </p>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3">
+                {selectedChat ? selectedChat.map((m, i) => (
+                  <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+                    <div className={cn(
+                      "max-w-[80%] rounded-xl px-3 py-2 text-xs leading-relaxed",
+                      m.role === "user"
+                        ? "bg-[#00E5B8]/10 text-white rounded-br-sm"
+                        : "bg-[#12121A] text-[#E0E0E5] rounded-bl-sm"
+                    )}>
+                      {m.hasImage ? <span className="text-purple-400 text-[9px] block mb-1">[Screenshot attached]</span> : null}
+                      <div className="whitespace-pre-wrap">{m.content}</div>
+                      <span className="text-[8px] text-[#7C7C8A] block mt-1">
+                        {new Date(m.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-xs text-[#7C7C8A] text-center py-8">Click a session to view the conversation</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Push Alert */}
+        {tab === "push-alert" && !loading && (
+          <div className="max-w-lg space-y-4">
+            <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-5 space-y-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A]">Push New Alert</p>
+
+              {alertSent && (
+                <div className="bg-[#00E5B8]/10 border border-[#00E5B8]/30 rounded-lg px-3 py-2 text-xs text-[#00E5B8]">
+                  {alertSent}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Severity</label>
+                  <select value={alertForm.severity}
+                    onChange={(e) => setAlertForm((f) => ({ ...f, severity: e.target.value }))}
+                    className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-[#00E5B8]/40">
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Category</label>
+                  <select value={alertForm.category}
+                    onChange={(e) => setAlertForm((f) => ({ ...f, category: e.target.value }))}
+                    className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-[#00E5B8]/40">
+                    <option value="THREAT">Threat</option>
+                    <option value="WEATHER">Weather</option>
+                    <option value="SEISMIC">Seismic</option>
+                    <option value="AVIATION">Aviation</option>
+                    <option value="GENERAL">General</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Title</label>
+                <input type="text" value={alertForm.title}
+                  onChange={(e) => setAlertForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Missile threat detected near Abu Dhabi"
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40" />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Description</label>
+                <textarea value={alertForm.description}
+                  onChange={(e) => setAlertForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Details about the alert..."
+                  rows={3}
+                  className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40 resize-none" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Regions</label>
+                  <input type="text" value={alertForm.regions}
+                    onChange={(e) => setAlertForm((f) => ({ ...f, regions: e.target.value }))}
+                    placeholder="UAE, Abu Dhabi, Dubai"
+                    className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#7C7C8A] outline-none focus:border-[#00E5B8]/40" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#7C7C8A] uppercase tracking-wider block mb-1">Expires In (hours)</label>
+                  <input type="number" value={alertForm.expiresInHours}
+                    onChange={(e) => setAlertForm((f) => ({ ...f, expiresInHours: Number(e.target.value) || 24 }))}
+                    className="w-full bg-[#12121A] border border-[#1E1E28] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-[#00E5B8]/40" />
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  if (!alertForm.title) return;
+                  setAlertSent("");
+                  setLoading(true);
+                  try {
+                    const res = await fetch("/api/admin/alert", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "x-admin-key": key },
+                      body: JSON.stringify(alertForm),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || "Failed");
+                    setAlertSent(`Alert pushed! ID: ${data.id} (${data.alertCount} active alerts)`);
+                    setAlertForm((f) => ({ ...f, title: "", description: "" }));
+                  } catch (err: any) {
+                    setError(err.message || "Failed to push alert");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={!alertForm.title || loading}
+                className="w-full bg-red-500 hover:bg-red-600 text-white font-bold text-sm py-2.5 rounded-lg transition-colors disabled:opacity-50">
+                {loading ? "Pushing..." : "Push Alert Now"}
+              </button>
+
+              <p className="text-[9px] text-[#7C7C8A] text-center">
+                Alert will appear on dashboard within 10 seconds via SSE/SWR polling.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Popular Queries */}
+        {tab === "queries" && !loading && (
+          <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#1E1E28]">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A]">Most Asked Questions</p>
+            </div>
+            <div className="divide-y divide-[#1E1E28]/50">
+              {queries.map((q, i) => (
+                <div key={i} className="px-4 py-3 flex items-center gap-3">
+                  <span className="text-sm font-bold font-mono text-[#7C7C8A] w-6 text-right">{i + 1}</span>
+                  <span className="text-xs text-white flex-1">{q.query}</span>
+                  <span className="text-xs font-mono text-[#00E5B8] shrink-0">{q.count}x</span>
+                </div>
+              ))}
+              {queries.length === 0 && <p className="text-xs text-[#7C7C8A] p-4">No queries yet</p>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -22,12 +22,14 @@ import ShelterFinder from "@/components/shelter/ShelterFinder";
 import LatestDevelopments from "@/components/intel/LatestDevelopments";
 import { useSSE } from "@/hooks/useSSE";
 import { useAlertSound } from "@/hooks/useAlertSound";
+import { useTracking } from "@/hooks/useTracking";
 
 type RightTab = "news" | "connectivity" | "threats" | "intel";
 
 export default function Dashboard() {
-  useSSE(); // Enable real-time updates via Server-Sent Events
-  useAlertSound(); // Play alert tones for new critical/warning alerts
+  useSSE();
+  useAlertSound();
+  useTracking();
   const [tab, setTab] = useState<RightTab>("news");
   const [evacOpen, setEvacOpen] = useState(false);
   const [shelterOpen, setShelterOpen] = useState(false);
@@ -107,6 +109,14 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Developer credit */}
+      <div className="w-full px-3 py-0.5 flex items-center justify-end shrink-0">
+        <a href="https://linkedin.com/in/reachvivek" target="_blank" rel="noopener noreferrer"
+          className="text-[7px] font-mono text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors">
+          Built by Vivek
+        </a>
       </div>
 
       {/* News ticker */}
