@@ -12,6 +12,8 @@ import {
   WarningIcon, XCircleIcon, ShieldCheckIcon, CaretDownIcon, CaretUpIcon,
 } from "@phosphor-icons/react";
 import { useNews } from "@/hooks/useNews";
+import { useStatus } from "@/hooks/useStatus";
+import { useAlerts } from "@/hooks/useAlerts";
 
 type TruthStatus = "confirmed" | "developing" | "cleared";
 
@@ -21,16 +23,45 @@ interface TruthItem {
   source: "govt" | "atc" | "ai";
 }
 
-const groundTruth: { items: TruthItem[]; lastUpdated: string; sources: number } = {
-  items: [
-    { text: "UAE airspace fully reopened; all commercial flights at DXB and AUH operating normally.", status: "confirmed", source: "govt" },
-    { text: "Heavy rainfall expected across Abu Dhabi and Dubai through Wednesday evening.", status: "developing", source: "govt" },
-    { text: "No active NOTAMs restricting civilian air corridors over UAE territory.", status: "confirmed", source: "atc" },
-    { text: "Earlier reports of DXB runway closure have been resolved. Normal ops resumed.", status: "cleared", source: "atc" },
-  ],
-  lastUpdated: "2026-03-25T12:00:00Z",
-  sources: 12,
-};
+// Build ground truth dynamically from live status + alerts data
+function buildGroundTruth(
+  statusItems: any[],
+  alerts: any[],
+  lastSynced: string | null,
+): { items: TruthItem[]; lastUpdated: string; sources: number } {
+  const items: TruthItem[] = [];
+
+  // Derive facts from status items
+  for (const s of statusItems) {
+    if (!s.key || !s.value) continue;
+    const key = s.key.toLowerCase();
+    const val = s.value.toLowerCase();
+    const status: TruthStatus = s.status === "green" || s.status === "normal" ? "confirmed"
+      : s.status === "amber" || s.status === "warning" || s.status === "degraded" ? "developing"
+      : "cleared";
+    const source: "govt" | "atc" = key.includes("airspace") || key.includes("flight") || key.includes("notam") ? "atc" : "govt";
+
+    items.push({ text: `${s.key}: ${s.value}${s.tooltip ? ` — ${s.tooltip}` : ""}`, status, source });
+  }
+
+  // Derive facts from active alerts
+  for (const a of (Array.isArray(alerts) ? alerts : []).slice(0, 3)) {
+    if (!a.title) continue;
+    const status: TruthStatus = a.severity === "critical" ? "developing" : a.severity === "warning" || a.severity === "high" ? "developing" : "confirmed";
+    items.push({ text: a.title, status, source: "govt" });
+  }
+
+  // Fallback if no data
+  if (items.length === 0) {
+    items.push({ text: "Awaiting live data sync...", status: "developing", source: "ai" });
+  }
+
+  return {
+    items: items.slice(0, 6),
+    lastUpdated: lastSynced || new Date().toISOString(),
+    sources: statusItems.length + (Array.isArray(alerts) ? alerts.length : 0),
+  };
+}
 
 const truthStatusConfig: Record<TruthStatus, { icon: React.ComponentType<any>; text: string; color: string }> = {
   confirmed: { icon: CheckCircleIcon, text: "Confirmed", color: "text-success" },
@@ -69,10 +100,14 @@ const fallbackArticles: Article[] = [
 
 export default function TruthFeed() {
   const { articles: apiArticles } = useNews();
+  const { items: statusItems, lastSynced } = useStatus();
+  const { alerts } = useAlerts();
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<Category>("all");
   const [truthOpen, setTruthOpen] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  const groundTruth = buildGroundTruth(statusItems, alerts, lastSynced);
 
   // Map news category to tab categories
   function mapCategories(category: string, title: string): Category[] {
