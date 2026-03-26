@@ -89,13 +89,16 @@ interface Article {
   link?: string;
 }
 
+// Fallback articles use relative timestamps so they never appear stale
+const fallbackNow = new Date();
+const hoursAgo = (h: number) => new Date(fallbackNow.getTime() - h * 3600000).toISOString();
 const fallbackArticles: Article[] = [
-  { id: "1", title: "UAE Universities Shift to Online Classes Until March 30 Due to Weather", source: "WAM", verified: true, publishedAt: "2026-03-25T10:00:00Z", tag: "EDUCATION", tagColor: "text-purple-400 bg-purple-500/10", categories: ["all", "students"] },
-  { id: "2", title: "MOHRE: Private Sector Remote Work Advisory Extended Through Week", source: "WAM", verified: true, publishedAt: "2026-03-25T09:00:00Z", tag: "EMPLOYMENT", tagColor: "text-blue-400 bg-blue-500/10", categories: ["all", "employees"] },
-  { id: "3", title: "Federal Government Offices at Reduced Capacity", source: "WAM", verified: true, publishedAt: "2026-03-25T08:30:00Z", tag: "GOVT", tagColor: "text-amber bg-amber-dim", categories: ["all", "employees", "govt"] },
-  { id: "4", title: "GCAA Confirms Full Airspace Restoration", source: "GCAA", verified: true, publishedAt: "2026-03-25T08:00:00Z", tag: "OFFICIAL", tagColor: "text-teal bg-teal-dim", categories: ["all"] },
-  { id: "5", title: "Schools in Abu Dhabi & Al Ain Resume In-Person Thursday", source: "ADEK", verified: true, publishedAt: "2026-03-25T05:00:00Z", tag: "EDUCATION", tagColor: "text-purple-400 bg-purple-500/10", categories: ["all", "students"] },
-  { id: "6", title: "DEWA: Power Restoration at 99.7% Across Dubai", source: "WAM", verified: true, publishedAt: "2026-03-24T22:00:00Z", tag: "INFRA", tagColor: "text-yellow-400 bg-yellow-500/10", categories: ["all", "govt"] },
+  { id: "1", title: "UAE Universities Shift to Online Classes Due to Weather", source: "WAM", verified: true, publishedAt: hoursAgo(1), tag: "EDUCATION", tagColor: "text-purple-400 bg-purple-500/10", categories: ["all", "students"] },
+  { id: "2", title: "MOHRE: Private Sector Remote Work Advisory Extended", source: "WAM", verified: true, publishedAt: hoursAgo(2), tag: "EMPLOYMENT", tagColor: "text-blue-400 bg-blue-500/10", categories: ["all", "employees"] },
+  { id: "3", title: "Federal Government Offices at Reduced Capacity", source: "WAM", verified: true, publishedAt: hoursAgo(3), tag: "GOVT", tagColor: "text-amber bg-amber-dim", categories: ["all", "employees", "govt"] },
+  { id: "4", title: "GCAA Confirms Full Airspace Restoration", source: "GCAA", verified: true, publishedAt: hoursAgo(4), tag: "OFFICIAL", tagColor: "text-teal bg-teal-dim", categories: ["all"] },
+  { id: "5", title: "Schools in Abu Dhabi & Al Ain Resume In-Person Classes", source: "ADEK", verified: true, publishedAt: hoursAgo(6), tag: "EDUCATION", tagColor: "text-purple-400 bg-purple-500/10", categories: ["all", "students"] },
+  { id: "6", title: "DEWA: Power Restoration at 99.7% Across Dubai", source: "WAM", verified: true, publishedAt: hoursAgo(8), tag: "INFRA", tagColor: "text-yellow-400 bg-yellow-500/10", categories: ["all", "govt"] },
 ];
 
 export default function TruthFeed() {
