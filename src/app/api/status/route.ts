@@ -9,7 +9,7 @@ export async function GET() {
     if (!cached) {
       return NextResponse.json({ items: [] }, { headers: { "Cache-Control": "public, max-age=10" } });
     }
-    return NextResponse.json(cached.data, {
+    return NextResponse.json({ ...cached.data, lastSynced: cached.fetchedAt }, {
       headers: { "Cache-Control": "public, max-age=10", "X-Fetched-At": cached.fetchedAt },
     });
   } catch {

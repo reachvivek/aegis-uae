@@ -2,7 +2,7 @@
   <img src="docs/screenshots/screen-1.png" alt="AegisUAE Dashboard" width="100%" />
 </p>
 
-<h1 align="center">AegisUAE</h1>
+<h1 align="center">AegisUAE - Crisis Information System</h1>
 
 <p align="center">
   <strong>Real-time crisis informatics command center for UAE national resilience</strong>
@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Tailwind-4.2-06B6D4?logo=tailwindcss" alt="Tailwind" />
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Leaflet-1.9-199900?logo=leaflet" alt="Leaflet" />
+  <img src="https://img.shields.io/badge/Turso-libSQL-4FF8D2?logo=turso" alt="Turso" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
 </p>
 
@@ -25,238 +25,497 @@
 
 ## Overview
 
-AegisUAE is a mission-critical crisis informatics dashboard designed for real-time situational awareness during national emergencies. Built to handle conflict scenarios, natural disasters, GPS disruptions, and mass evacuation coordination across the UAE.
+AegisUAE is a mission-critical crisis informatics dashboard providing real-time situational awareness during national emergencies in the UAE. The system aggregates live data from weather services, aviation feeds, seismic networks, news wires, and the GDELT global event database, processes it through a background worker pipeline, and presents it through a unified command interface.
 
-The system aggregates data from government sources (GCAA, NCM, MOI, NCEMA), defense networks, aviation feeds, and verified news into a single unified command interface.
+The platform features an interactive airspace stability map, threat intelligence timeline, evacuation route planner, shelter finder, and a context-aware advisory chatbot powered by Groq (Llama 3.3 70B).
 
-> **Note:** This is a frontend prototype with mock data. Backend API integration is planned.
-
-## Screenshots
-
-<p align="center">
-  <img src="docs/screenshots/screen-1.png" alt="AegisUAE Command Center" width="100%" />
-</p>
-
-<details>
-<summary><strong>More screenshots</strong></summary>
-
-| View | Screenshot |
-|------|-----------|
-| Threat Analytics | `docs/screenshots/threats.png` |
-| Evacuation Modal | `docs/screenshots/evacuation.png` |
-| AI Advisory Chat | `docs/screenshots/advisory.png` |
-| Mobile View | `docs/screenshots/mobile.png` |
-
-</details>
-
-## Architecture
-
-```
-aegis-uae/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── page.tsx            # Main dashboard layout
-│   │   ├── layout.tsx          # Root layout + fonts
-│   │   └── globals.css         # Theme system + custom utilities
-│   │
-│   ├── components/
-│   │   ├── layout/             # Shell components
-│   │   │   ├── Header.tsx          # Brand bar + system clock
-│   │   │   ├── StatusTicker.tsx    # Real-time status ribbon
-│   │   │   ├── AlertBanner.tsx     # Auto-rotating critical alerts
-│   │   │   └── NewsTicker.tsx      # Breaking news ticker
-│   │   │
-│   │   ├── map/                # Geospatial
-│   │   │   └── StabilityMap.tsx    # Leaflet map with flight paths,
-│   │   │                           # weather zones, airspace overlays
-│   │   │
-│   │   ├── stats/              # Analytics carousel
-│   │   │   └── StatsCarousel.tsx   # Aviation, threats, defense,
-│   │   │                           # situation status cards
-│   │   │
-│   │   ├── feeds/              # News & verified intel
-│   │   │   └── TruthFeed.tsx       # Ground truth + categorized
-│   │   │                           # articles (students/work/govt)
-│   │   │
-│   │   ├── threat/             # Threat intelligence
-│   │   │   └── ThreatTimeline.tsx  # Chronological threat events
-│   │   │                           # with intercept data
-│   │   │
-│   │   ├── aviation/           # Air traffic
-│   │   │   ├── ConnectivityIndex.tsx  # Route status matrix
-│   │   │   └── FlightPulse.tsx        # Airport performance
-│   │   │
-│   │   ├── intel/              # Geopolitical developments
-│   │   │   └── LatestDevelopments.tsx  # Sentiment analysis +
-│   │   │                               # UAE impact predictions
-│   │   │
-│   │   ├── evacuation/         # Emergency routing
-│   │   │   └── EvacuationRoutes.tsx   # Multi-modal evacuation
-│   │   │                               # (road/air/sea) with modal
-│   │   │
-│   │   ├── advisory/           # AI assistant
-│   │   │   ├── FloatingAdvisory.tsx   # FAB + hint bubble
-│   │   │   └── AdvisoryModal.tsx      # Chat interface with
-│   │   │                               # context-aware responses
-│   │   │
-│   │   └── ui/                 # Base components (shadcn/ui)
-│   │       ├── standard-modal.tsx     # Reusable modal system
-│   │       ├── dialog.tsx, card.tsx, badge.tsx, button.tsx,
-│   │       ├── tabs.tsx, tooltip.tsx, scroll-area.tsx
-│   │       └── separator.tsx
-│   │
-│   └── lib/
-│       └── utils.ts            # Shared utilities
-│
-├── public/                     # Static assets
-├── next.config.js
-├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
-```
-
-## System Flow
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                        STATUS TICKER                             │
-│  [Aviation: OPEN LOW LOW] [Security: NORMAL ELEVATED]           │
-│  [Weather: WARNING WATCH]                          12:45:32 GST │
-├──────────────────────────────────────────────────────────────────┤
-│  AegisUAE   Crisis Informatics System    Tue Mar 25, 2026  GST  │
-├──────────────────────────────────────────────────────────────────┤
-│ ▌ 3 ALERTS  WARNING  Heavy Rainfall Warning - Abu Dhabi...  ● ●│
-├────────────────────────────────┬─────────────────────────────────┤
-│                                │  ┌─ Stats Carousel ──────────┐ │
-│                                │  │ Aviation | Threats |       │ │
-│     AIRSPACE STABILITY MAP     │  │ Defense  | Status          │ │
-│                                │  └────────────────────────────┘ │
-│   ● DXB  ● AUH  ● SHJ  ● DWC │  ┌─ Tab Bar ─────────┐ [EVAC] │
-│   ╌╌╌ Flight paths             │  │Feed|Routes|Threats|Intel│   │
-│   ◯ Weather zones              │  └────────────────────────────┘ │
-│   ▭ Airspace zones             │  ┌─ Active Tab Content ──────┐ │
-│                                │  │                            │ │
-│   [Flights] [Weather]          │  │  Ground Truth (toggle)     │ │
-│   [Airspace]                   │  │  Category-filtered news    │ │
-│                                │  │  articles...               │ │
-│                   [+][-][⊕]    │  │                            │ │
-├────────────────────────────────┴─────────────────────────────────┤
-│ BREAKING ▸ 5 UAVs intercepted...  DXB operating normally...     │
-└──────────────────────────────────────────────────────────────────┘
-                                                          [💬 AI]
-```
-
-## Data Flow (Planned)
-
-```
-External Sources                    Backend API               Frontend
-─────────────────                   ───────────               ────────
-GCAA Directives  ──┐
-NCM Weather      ──┤                ┌──────────┐
-MOI Alerts       ──┼──── Ingest ───►│  REST /   │────► SWR / React Query
-NCEMA Advisories ──┤    Pipeline    │  WebSocket│     with real-time
-Defense Networks ──┤                │  Server   │     subscriptions
-Aviation Feeds   ──┤                └──────────┘
-News Wires (WAM) ──┘                     │
-                                         ▼
-                                   PostgreSQL +
-                                   Redis Cache
-```
-
-> Currently using static mock data. The frontend is structured to easily swap in API calls via SWR/fetch.
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 16.2 (App Router, Turbopack) |
-| Runtime | React 19 with Server Components |
+| Framework | Next.js 16.2 (App Router) |
+| Runtime | React 19 |
 | Language | TypeScript 6.0 (strict mode) |
-| Styling | Tailwind CSS 4.2 (CSS-first config) |
-| Components | shadcn/ui with Base UI primitives |
-| Icons | Phosphor Icons (duotone weight) |
-| Maps | Leaflet 1.9 with custom dark tiles |
-| Charts | Recharts 3.8 + custom SVG sparklines |
-| Animations | Framer Motion + CSS keyframes |
-| Data Fetching | SWR (ready, not yet wired) |
+| Styling | Tailwind CSS 4.2 + shadcn/ui + Base UI |
+| Icons | Phosphor Icons, Lucide React |
+| Maps | Leaflet 1.9, MapLibre GL, deck.gl, react-map-gl |
+| Charts | Recharts 3.8 |
+| Animations | Framer Motion 12 |
+| Data Fetching | SWR 2.4 with custom hooks |
+| Database | Turso (libSQL) via `@libsql/client` |
+| AI Chat | Groq SDK (Llama 3.3 70B Versatile) |
+| Background Jobs | Node.js worker with `node-cron` |
+| Analytics | Vercel Analytics |
+| RSS Parsing | `rss-parser` |
 
-## Getting Started
+---
+
+## Architecture Overview
+
+The system is composed of three main layers:
+
+### 1. Frontend (Next.js on Vercel)
+
+A single-page dashboard built with React 19 and Next.js App Router. All data is fetched client-side via SWR hooks that poll Next.js API routes. Real-time updates are delivered through Server-Sent Events (SSE).
+
+### 2. API Routes (Next.js API on Vercel)
+
+Thin API layer that reads pre-processed data from the Turso database cache. Each route serves a specific data domain (alerts, weather, flights, threats, etc.). The API also handles user tracking, admin analytics, and the advisory chat endpoint.
+
+### 3. Background Worker (Node.js on Railway)
+
+A standalone Node.js process that runs on cron schedules. It collects raw data from external sources, processes and enriches it, then writes the results to Turso. It exposes a `/health` endpoint for Railway health checks.
+
+### 4. Turso Database (libSQL)
+
+A hosted SQLite-compatible database (Turso) that acts as the shared data layer between the worker and the frontend. The worker writes; the frontend reads.
+
+---
+
+## Data Flow
+
+```mermaid
+graph LR
+    subgraph External Sources
+        A1[Weather APIs]
+        A2[Aviation Feeds]
+        A3[News / RSS]
+        A4[GDELT Events]
+        A5[USGS Earthquakes]
+        A6[Shelter Data]
+    end
+
+    subgraph Worker - Railway
+        B1[Collectors]
+        B2[Processors]
+    end
+
+    subgraph Turso DB
+        C1[(data_cache)]
+        C2[(alerts)]
+        C3[(events)]
+        C4[(shelters)]
+        C5[(change_log)]
+    end
+
+    subgraph Frontend - Vercel
+        D1[API Routes]
+        D2[SSE Endpoint]
+        D3[SWR Hooks]
+        D4[React Dashboard]
+        D5[Advisory Chat]
+    end
+
+    A1 & A2 & A3 & A4 & A5 & A6 --> B1
+    B1 --> B2
+    B2 --> C1 & C2 & C3 & C4 & C5
+
+    C1 & C2 & C3 & C4 --> D1
+    C5 --> D2
+    D1 --> D3
+    D2 --> D3
+    D3 --> D4
+    D1 --> D5
+```
+
+### ASCII Diagram
+
+```
+External Sources          Worker (Railway)         Turso DB           Frontend (Vercel)
+================          ================         ========           =================
+
+Weather APIs    --+
+Aviation Feeds  --+       +-------------+
+News / RSS      --+-----> | Collectors  |          +------------+     +----------------+
+GDELT Events   --+       +------+------+          |            |     | API Routes     |
+USGS Quakes    --+              |           +---> | data_cache |---> | /api/alerts    |
+Shelter Data   --+       +------v------+    |     | alerts     |     | /api/weather   |
+                          | Processors  |----+     | events     |     | /api/flights   |
+                          +-------------+    |     | shelters   |     | /api/threats   |
+                           (every 5-15m)     |     | system_    |     | /api/news      |
+                                             |     |   status   |     | /api/chat      |
+                                             +---> | change_log |---> | /api/sse       |
+                                                   +------------+     +-------+--------+
+                                                                              |
+                                                                       SWR Hooks + SSE
+                                                                              |
+                                                                    +---------v--------+
+                                                                    |  React Dashboard |
+                                                                    |  (Single Page)   |
+                                                                    +------------------+
+```
+
+---
+
+## Database Schema
+
+All tables are defined in `worker/db/schema.ts` and initialized on worker startup.
+
+### `data_cache`
+
+General-purpose key-value cache for processed data blobs.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `key` | TEXT (PK) | Cache key (e.g., `"alerts"`, `"weather"`, `"flights"`) |
+| `data` | TEXT | JSON-serialized payload |
+| `fetched_at` | TEXT | ISO 8601 timestamp of last fetch |
+| `ttl_seconds` | INTEGER | Time-to-live in seconds (default: 300) |
+
+### `alerts`
+
+Active crisis alerts displayed in the banner and map.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | TEXT (PK) | Unique alert identifier |
+| `severity` | TEXT | Alert severity level |
+| `category` | TEXT | Alert category |
+| `title` | TEXT | Short alert title |
+| `description` | TEXT | Detailed description |
+| `source` | TEXT | Originating source |
+| `regions` | TEXT | Affected regions (JSON array) |
+| `issued_at` | TEXT | When the alert was issued |
+| `expires_at` | TEXT | Expiration timestamp |
+| `active` | INTEGER | 1 = active, 0 = expired |
+
+### `events`
+
+Geopolitical and crisis events sourced from GDELT and other feeds.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | TEXT (PK) | Unique event identifier |
+| `timestamp` | TEXT | Event timestamp |
+| `type` | TEXT | Event type classification |
+| `headline` | TEXT | Event headline |
+| `detail` | TEXT | Full event details |
+| `source` | TEXT | Data source |
+| `sentiment` | TEXT | Sentiment analysis result |
+| `region` | TEXT | Geographic region |
+| `raw_data` | TEXT | Original raw payload (JSON) |
+
+### `shelters`
+
+Emergency shelter locations and metadata.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | TEXT (PK) | Unique shelter identifier |
+| `name` | TEXT | Shelter name |
+| `type` | TEXT | Shelter type |
+| `lat` | REAL | Latitude |
+| `lng` | REAL | Longitude |
+| `capacity` | INTEGER | Maximum occupancy |
+| `amenities` | TEXT | Available amenities (JSON) |
+| `last_verified` | TEXT | Last verification timestamp |
+
+### `system_status`
+
+Key-value store for dashboard status indicators.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `key` | TEXT (PK) | Status key (e.g., `"aviation"`, `"security"`) |
+| `value` | TEXT | Current value |
+| `status` | TEXT | Status level (default: `"normal"`) |
+| `tooltip` | TEXT | Hover tooltip text |
+| `updated_at` | TEXT | Last update timestamp |
+
+### `change_log`
+
+Append-only log used to drive SSE real-time notifications.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER (PK, auto) | Auto-incrementing ID |
+| `channel` | TEXT | Data channel that changed |
+| `changed_at` | TEXT | Timestamp of the change |
+
+### `page_views`
+
+Analytics tracking for visitor page views.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER (PK, auto) | Auto-incrementing ID |
+| `path` | TEXT | Page path visited |
+| `referrer` | TEXT | Referrer URL |
+| `user_agent` | TEXT | Browser user agent string |
+| `country` | TEXT | Visitor country |
+| `city` | TEXT | Visitor city |
+| `device` | TEXT | Device type (desktop/mobile/tablet) |
+| `session_id` | TEXT | Session identifier |
+| `created_at` | TEXT | Timestamp |
+
+### `conversations`
+
+Chat message history for the advisory chatbot.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER (PK, auto) | Auto-incrementing ID |
+| `session_id` | TEXT | Chat session identifier |
+| `role` | TEXT | Message role (`"user"` or `"assistant"`) |
+| `content` | TEXT | Message content (truncated to 2000 chars) |
+| `has_image` | INTEGER | 1 if user attached an image |
+| `created_at` | TEXT | Timestamp |
+
+### `interactions`
+
+User interaction tracking for analytics.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER (PK, auto) | Auto-incrementing ID |
+| `type` | TEXT | Interaction type |
+| `target` | TEXT | Interaction target element |
+| `meta` | TEXT | Additional metadata (JSON) |
+| `session_id` | TEXT | Session identifier |
+| `created_at` | TEXT | Timestamp |
+
+---
+
+## API Routes
+
+All routes are located under `src/app/api/` and use Next.js Route Handlers.
+
+### Data Endpoints
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/alerts` | Active crisis alerts |
+| GET | `/api/weather` | Weather data and warnings |
+| GET | `/api/flights` | Live flight tracking data |
+| GET | `/api/flights/connectivity` | Airport connectivity index |
+| GET | `/api/news` | Aggregated news articles |
+| GET | `/api/news/ticker` | Breaking news ticker items |
+| GET | `/api/threats` | Threat intelligence feed |
+| GET | `/api/threats/stats` | Threat statistics and counts |
+| GET | `/api/intel` | Geopolitical intelligence (GDELT) |
+| GET | `/api/earthquakes` | Seismic activity data |
+| GET | `/api/evacuation` | Evacuation route information |
+| GET | `/api/shelters` | Emergency shelter locations |
+| GET | `/api/status` | System status indicators |
+| GET | `/api/stats` | Dashboard statistics |
+
+### Real-time
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/sse` | Server-Sent Events stream for live updates |
+
+### Chat
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/chat` | Advisory chatbot (Groq / Llama 3.3 70B) |
+
+### Analytics and Admin
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/track` | Page view and interaction tracking |
+| GET | `/api/admin` | Admin dashboard analytics (auth required) |
+| POST | `/api/admin/alert` | Manually create/manage alerts (auth required) |
+
+### Background
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/cron/refresh` | Vercel cron-triggered data refresh |
+
+---
+
+## Frontend Components
+
+### Layout
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Header | `src/components/layout/Header.tsx` | Brand bar, system clock, navigation |
+| StatusTicker | `src/components/layout/StatusTicker.tsx` | Real-time status ribbon (aviation, security, weather) |
+| AlertBanner | `src/components/layout/AlertBanner.tsx` | Auto-rotating critical alert banners |
+| NewsTicker | `src/components/layout/NewsTicker.tsx` | Breaking news horizontal ticker |
+
+### Domain Modules
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| StabilityMap | `src/components/map/StabilityMap.tsx` | Interactive map with flights, weather zones, airspace |
+| StatsCarousel | `src/components/stats/StatsCarousel.tsx` | Rotating analytics cards |
+| TruthFeed | `src/components/feeds/TruthFeed.tsx` | Categorized news feed with ground truth section |
+| ThreatTimeline | `src/components/threat/ThreatTimeline.tsx` | Chronological threat events with intercept data |
+| ConnectivityIndex | `src/components/aviation/ConnectivityIndex.tsx` | Airport route connectivity matrix |
+| FlightPulse | `src/components/aviation/FlightPulse.tsx` | Airport performance indicators |
+| LatestDevelopments | `src/components/intel/LatestDevelopments.tsx` | Geopolitical developments with sentiment analysis |
+| EvacuationRoutes | `src/components/evacuation/EvacuationRoutes.tsx` | Multi-modal evacuation route planner |
+| ShelterFinder | `src/components/shelter/ShelterFinder.tsx` | Emergency shelter locator |
+| FloatingAdvisory | `src/components/advisory/FloatingAdvisory.tsx` | Floating action button for chat |
+| AdvisoryModal | `src/components/advisory/AdvisoryModal.tsx` | Full chat interface modal |
+| SituationStatus | `src/components/status/SituationStatus.tsx` | Situation overview panel |
+
+### SWR Hooks
+
+All hooks are in `src/hooks/` and use SWR for data fetching with automatic revalidation.
+
+| Hook | Description |
+|------|-------------|
+| `useAlerts` | Fetches active alerts |
+| `useWeather` | Fetches weather data |
+| `useFlights` | Fetches flight tracking data |
+| `useConnectivity` | Fetches airport connectivity index |
+| `useNews` | Fetches news articles |
+| `useNewsTicker` | Fetches breaking news ticker items |
+| `useThreats` | Fetches threat intelligence |
+| `useIntel` | Fetches geopolitical intel |
+| `useEvacuation` | Fetches evacuation routes |
+| `useShelters` | Fetches shelter locations |
+| `useEarthquakes` | Fetches seismic activity data |
+| `useStats` | Fetches dashboard statistics |
+| `useStatus` | Fetches system status indicators |
+| `useSSE` | Subscribes to SSE stream for real-time data invalidation |
+| `useAlertSound` | Plays audio alert on new critical alerts |
+| `useTracking` | Tracks page views and user interactions |
+
+---
+
+## Worker Pipeline
+
+The worker (`worker/index.ts`) runs as a standalone Node.js process on Railway.
+
+### Collectors
+
+Fetch raw data from external sources and write to Turso.
+
+| Collector | File | Schedule | Description |
+|-----------|------|----------|-------------|
+| Weather | `worker/collectors/weather.ts` | Every 10 min | Weather warnings and forecasts |
+| Flights | `worker/collectors/flights.ts` | Every 5 min | Live aviation data |
+| News | `worker/collectors/news.ts` | Every 5 min | RSS and news aggregation |
+| GDELT | `worker/collectors/gdelt.ts` | Every 15 min | Global event database |
+| Earthquakes | `worker/collectors/earthquakes.ts` | Every 15 min | USGS seismic feeds |
+| Shelters | `worker/collectors/shelters.ts` | Daily at 03:00 UTC | Shelter location data |
+
+### Processors
+
+Transform and enrich collected data, then update the cache.
+
+| Processor | File | Description |
+|-----------|------|-------------|
+| Status | `worker/processors/status.ts` | Computes system status indicators |
+| Alerts | `worker/processors/alerts.ts` | Generates alerts from weather and seismic data |
+| Threats | `worker/processors/threats.ts` | Processes GDELT events into threat timeline |
+| Connectivity | `worker/processors/connectivity.ts` | Calculates airport connectivity scores |
+
+### Maintenance
+
+- **Change log pruning**: Runs hourly to clean up old SSE notification entries.
+
+---
+
+## Environment Variables
+
+Create a `.env.local` file in the project root for local development.
+
+### Required
+
+| Variable | Description | Used By |
+|----------|-------------|---------|
+| `TURSO_DATABASE_URL` | Turso database connection URL | Frontend + Worker |
+| `TURSO_AUTH_TOKEN` | Turso authentication token | Frontend + Worker |
+
+### Optional
+
+| Variable | Description | Default | Used By |
+|----------|-------------|---------|---------|
+| `GROQ_API_KEY` | Groq API key for advisory chatbot | _(chat disabled if unset)_ | Frontend |
+| `ADMIN_KEY` | Admin dashboard authentication key | `aegis2026` | Frontend |
+| `CRON_SECRET` | Secret for Vercel cron route authentication | _(none)_ | Frontend |
+| `PORT` | Health check server port for Railway | `3001` | Worker |
+
+---
+
+## Running Locally
 
 ### Prerequisites
 
 - Node.js 20+
 - npm 10+ (or pnpm/yarn)
+- A Turso database (free tier at [turso.tech](https://turso.tech))
 
-### Installation
+### 1. Install Dependencies
 
 ```bash
-# Clone the repository
-git clone https://github.com/reachvivek/aegis-uae.git
-cd aegis-uae
-
-# Install dependencies
+cd frontend
 npm install
+```
 
-# Start development server
+### 2. Configure Environment
+
+```bash
+cp .env.example .env.local
+# Edit .env.local with your Turso credentials and optional API keys
+```
+
+### 3. Start the Worker
+
+The worker initializes the database schema and begins collecting data.
+
+```bash
+npx tsx worker/index.ts
+```
+
+### 4. Start the Frontend
+
+```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Environment Variables
-
-Create a `.env.local` file in the root:
-
-```env
-# Map tiles (optional - defaults to CartoDB dark)
-NEXT_PUBLIC_MAP_TILE_URL=https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png
-
-# API endpoint (when backend is ready)
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
-```
-
-### Build
+### 5. Build for Production
 
 ```bash
 npm run build
 npm start
 ```
 
-## Features
+---
 
-### Core Modules
+## Deployment
 
-- **Airspace Stability Map** - Interactive Leaflet map with toggleable flight paths, weather zones, and restricted airspace overlays. Airport markers with real-time delay indices.
+### Frontend -- Vercel
 
-- **Stats Carousel** - Auto-rotating cards covering aviation pulse (on-time rates, delays), threat summary (missiles/drones fired vs intercepted with sparklines), defense systems (THAAD, Patriot, Pantsir intercept counts), and situation status (conflict state + GPS jamming).
+The Next.js frontend is deployed to Vercel.
 
-- **Threat Timeline** - Chronological feed of threat events with type classification (missile, drone, cyber, GPS), intercept outcomes, region mapping, and severity indicators.
+- **Framework Preset**: Next.js (auto-detected)
+- **Build Command**: `npm run build`
+- **Output Directory**: `.next`
+- **Environment Variables**: Set `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `GROQ_API_KEY`, `ADMIN_KEY`, and `CRON_SECRET` in the Vercel dashboard.
+- **Cron Jobs**: The `/api/cron/refresh` route can be configured as a Vercel cron job for periodic cache refresh as a fallback to the Railway worker.
+- **SSE Limitation**: The SSE endpoint auto-closes after 25 seconds to comply with Vercel's serverless function timeout. The client automatically reconnects.
 
-- **News Feed** - Categorized articles filtered by audience (students, employees, government) with collapsible ground truth section showing verified facts from official sources.
+**Production URL**: [https://aegisuae.vercel.app](https://aegisuae.vercel.app)
 
-- **Evacuation Router** - Multi-modal evacuation routes (road, air, sea) with travel times, distances, checkpoint counts, capacity estimates, and real-time status (open/congested/closed).
+### Worker -- Railway
 
-- **AI Advisory** - Context-aware chat interface that cross-references queries with live GCAA directives, flight data, and verified news to provide personalized guidance.
+The background worker runs as a persistent Node.js service on Railway.
 
-### UX Design
+- **Start Command**: `npx tsx worker/index.ts`
+- **Environment Variables**: Set `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, and `PORT` in the Railway dashboard.
+- **Health Check**: The worker exposes a `/health` endpoint on the configured port for Railway's health monitoring.
+- **Scaling**: Single instance is sufficient; the worker is stateless and idempotent.
 
-- **OLED-optimized dark theme** with command center aesthetics
-- **Progressive disclosure** on map layers with fade transitions
-- **Urgency hierarchy** through color, animation, and typography weight
-- **Mobile responsive** with adaptive layouts (grid on desktop, scroll on mobile)
-- **Persistent alert system** with severity-coded auto-rotating banners
-- **Breaking news ticker** with clickable items opening detail modals
+### Database -- Turso
 
-## Roadmap
+- **Provider**: [Turso](https://turso.tech) (hosted libSQL / SQLite edge database)
+- **Schema Initialization**: Handled automatically by the worker on startup via `worker/db/schema.ts`.
+- **Replication**: Turso supports edge replicas for low-latency reads from Vercel's serverless functions.
 
-- [ ] Backend API with PostgreSQL + Redis
-- [ ] Real-time WebSocket feeds for live data
-- [ ] Historical data playback with time slider
-- [ ] Multi-language support (Arabic/English)
-- [ ] Scenario simulation mode
-- [ ] Push notifications via service worker
-- [ ] Role-based access (civilian vs operator view)
-- [ ] PDF report generation
+---
 
 ## License
 

@@ -11,8 +11,23 @@ import {
   SirenIcon, ShieldWarningIcon, GpsSlashIcon, MapPinIcon, WifiHighIcon,
 } from "@phosphor-icons/react";
 import { useStatus } from "@/hooks/useStatus";
+import { useStats } from "@/hooks/useStats";
 
 type TimeRange = "all" | "24h" | "48h" | "7d";
+
+// ─── Sync timestamp badge ───
+function SyncBadge({ timestamp }: { timestamp: string | null }) {
+  if (!timestamp) return <span className="text-[7px] font-mono text-muted-foreground/50 ml-auto">No sync</span>;
+  const d = new Date(timestamp);
+  const ago = Math.round((Date.now() - d.getTime()) / 60000);
+  const label = ago < 1 ? "Just now" : ago < 60 ? `${ago}m ago` : ago < 1440 ? `${Math.round(ago / 60)}h ago` : `${Math.round(ago / 1440)}d ago`;
+  const fresh = ago < 30;
+  return (
+    <span className={cn("text-[7px] font-mono ml-auto", fresh ? "text-success/70" : "text-amber/70")}>
+      {label}
+    </span>
+  );
+}
 
 // ─── Mock data by time range ───
 const threatData: Record<TimeRange, {
@@ -75,7 +90,7 @@ function Sparkline({ data, color, height = 28 }: { data: number[]; color: string
 }
 
 // ─── Aviation Card ───
-function AviationCard() {
+function AviationCard({ syncTime }: { syncTime: string | null }) {
   const airports = [
     { code: "DXB", total: 1247, onTime: 1089, delayed: 142, cancelled: 16, index: "low", trend: "up", delayDelta: -8, cancelDelta: -3 },
     { code: "AUH", total: 634, onTime: 571, delayed: 56, cancelled: 7, index: "low", trend: "stable", delayDelta: +2, cancelDelta: 0 },
@@ -86,7 +101,7 @@ function AviationCard() {
       <div className="flex items-center gap-1.5 mb-1">
         <AirplaneTiltIcon className="w-3 h-3 text-teal" weight="duotone" />
         <span className="text-[9px] font-bold uppercase tracking-[0.1em]">Aviation Pulse</span>
-        <span className="text-[7px] font-mono text-muted-foreground ml-auto">24h</span>
+        <SyncBadge timestamp={syncTime} />
       </div>
       {airports.map((ap) => {
         const rate = Math.round((ap.onTime / ap.total) * 100);
@@ -135,7 +150,7 @@ function AviationCard() {
 }
 
 // ─── Threat Stats Card with time range tabs + sparklines ───
-function ThreatCard() {
+function ThreatCard({ syncTime }: { syncTime: string | null }) {
   const [range, setRange] = useState<TimeRange>("all");
   const d = threatData[range];
   const totalFired = d.missilesFired + d.dronesFired;
@@ -147,8 +162,8 @@ function ThreatCard() {
       <div className="flex items-center gap-1.5 mb-2">
         <CrosshairIcon className="w-3 h-3 text-danger" weight="duotone" />
         <span className="text-[9px] font-bold uppercase tracking-[0.1em]">Threat Summary</span>
-        {/* Time range tabs */}
-        <div className="flex items-center gap-0.5 ml-auto">
+        <SyncBadge timestamp={syncTime} />
+        <div className="flex items-center gap-0.5">
           {(["all", "24h", "48h", "7d"] as const).map((t) => (
             <button key={t} onClick={() => setRange(t)}
               className={cn(
@@ -276,7 +291,7 @@ const defenseData: Record<DefenseRange, { name: string; type: string; intercepts
   ],
 };
 
-function DefenseCard() {
+function DefenseCard({ syncTime }: { syncTime: string | null }) {
   const [range, setRange] = useState<DefenseRange>("all");
   const systems = defenseData[range];
   const totalInt = systems.reduce((s, sys) => s + sys.intercepts, 0);
@@ -286,7 +301,8 @@ function DefenseCard() {
       <div className="flex items-center gap-1.5 mb-2">
         <ShieldCheckIcon className="w-3 h-3 text-teal" weight="duotone" />
         <span className="text-[9px] font-bold uppercase tracking-[0.1em]">Defense Systems</span>
-        <div className="flex items-center gap-0.5 ml-auto">
+        <SyncBadge timestamp={syncTime} />
+        <div className="flex items-center gap-0.5">
           {(["all", "24h", "48h", "7d"] as const).map((t) => (
             <button key={t} onClick={() => setRange(t)}
               className={cn(
@@ -330,7 +346,7 @@ function DefenseCard() {
 }
 
 // ─── Situation Status + GPS Card (live from API) ───
-function SituationCard() {
+function SituationCard({ syncTime }: { syncTime: string | null }) {
   const { items } = useStatus();
 
   // Derive values from live status API
@@ -356,7 +372,7 @@ function SituationCard() {
       <div className="flex items-center gap-1.5 mb-2">
         <SirenIcon className="w-3 h-3 text-cyan" weight="duotone" />
         <span className="text-[9px] font-bold uppercase tracking-[0.1em]">Situation Status</span>
-        <span className="text-[7px] font-mono text-muted-foreground ml-auto">Live</span>
+        <SyncBadge timestamp={syncTime} />
       </div>
 
       {/* Two-column layout: Threat Status + GPS */}
@@ -437,6 +453,8 @@ const cards = [
 export default function StatsCarousel() {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  const { lastSynced } = useStats();
+  const { lastSynced: statusSynced } = useStatus();
 
   useEffect(() => {
     if (paused) return;
@@ -455,10 +473,10 @@ export default function StatsCarousel() {
       <CardContent className="p-2.5">
         {/* Content with fade animation */}
         <div key={cards[active].id} className="animate-in fade-in slide-in-from-right-2 duration-300">
-          {active === 0 && <AviationCard />}
-          {active === 1 && <ThreatCard />}
-          {active === 2 && <DefenseCard />}
-          {active === 3 && <SituationCard />}
+          {active === 0 && <AviationCard syncTime={lastSynced.flights} />}
+          {active === 1 && <ThreatCard syncTime={lastSynced.threats} />}
+          {active === 2 && <DefenseCard syncTime={lastSynced.threats} />}
+          {active === 3 && <SituationCard syncTime={statusSynced} />}
         </div>
 
         {/* Dot indicators with labels */}

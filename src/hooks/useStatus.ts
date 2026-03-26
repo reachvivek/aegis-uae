@@ -10,6 +10,7 @@ export function useStatus() {
 
   return {
     items: data?.items || [],
+    lastSynced: data?.lastSynced || null,
     isLoading,
     isError: !!error,
     mutate,

@@ -28,6 +28,11 @@ export async function GET() {
         hasThunder: weather?.data?.zones?.some((z: any) => z.type === "thunder") || false,
         hasRain: weather?.data?.zones?.some((z: any) => z.type === "rain") || false,
       },
+      lastSynced: {
+        flights: flights?.fetchedAt || null,
+        threats: threats?.fetchedAt || null,
+        weather: weather?.fetchedAt || null,
+      },
     };
 
     return NextResponse.json(stats, { headers: { "Cache-Control": "public, max-age=30" } });
