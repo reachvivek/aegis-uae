@@ -398,7 +398,7 @@ export default function AlertBanner() {
             {/* Dot indicators */}
             <div className="flex items-center gap-1 shrink-0 ml-auto">
               {alerts.map((a, i) => {
-                const ac = severityConfig[a.severity];
+                const ac = severityConfig[a.severity] || severityConfig.advisory;
                 return (
                   <button
                     key={a.id}
