@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, getStatusColor } from "@/lib/utils";
 import {
   ShieldIcon, AirplaneTiltIcon, WarningIcon, PulseIcon,
-  CloudRainIcon, CloudLightningIcon, ClockIcon,
+  CloudRainIcon, CloudLightningIcon,
 } from "@phosphor-icons/react";
 import { useStatus } from "@/hooks/useStatus";
 
@@ -61,7 +60,6 @@ const GroupIcon = ({ group }: { group: string }) => {
 
 export default function StatusTicker() {
   const { items: apiItems } = useStatus();
-  const [time, setTime] = useState("");
 
   // Map API items to component format, fallback to mock data
   const statuses: StatusItem[] = apiItems.length > 0
@@ -75,15 +73,6 @@ export default function StatusTicker() {
         group: groupMap[item.key] || "security",
       }))
     : fallbackStatuses;
-  useEffect(() => {
-    const update = () =>
-      setTime(new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Dubai",
-      }));
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const groups = ["aviation", "security", "weather"] as const;
 
@@ -129,11 +118,6 @@ export default function StatusTicker() {
             </div>
           ))}
 
-          {/* Clock - hidden on mobile (shown in header) */}
-          <div className="ml-auto hidden sm:flex items-center gap-1 shrink-0 pl-2 border-l border-border/50">
-            <ClockIcon className="w-2.5 h-2.5 text-teal/50" weight="bold" />
-            <span className="text-[8px] text-muted-foreground font-mono">{time} GST</span>
-          </div>
         </div>
       </div>
     </TooltipProvider>

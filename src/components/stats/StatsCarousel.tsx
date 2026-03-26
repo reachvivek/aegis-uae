@@ -10,6 +10,7 @@ import {
   CrosshairIcon, ShieldCheckIcon, WarningIcon, NavigationArrowIcon,
   SirenIcon, ShieldWarningIcon, GpsSlashIcon, MapPinIcon, WifiHighIcon,
 } from "@phosphor-icons/react";
+import { useStatus } from "@/hooks/useStatus";
 
 type TimeRange = "all" | "24h" | "48h" | "7d";
 
@@ -328,30 +329,38 @@ function DefenseCard() {
   );
 }
 
-// ─── Situation Status + GPS Card ───
+// ─── Situation Status + GPS Card (live from API) ───
 function SituationCard() {
-  const lastAttackHoursAgo = 32;
-  const isActive = lastAttackHoursAgo < 6;
-  const isCaution = lastAttackHoursAgo >= 6 && lastAttackHoursAgo < 24;
+  const { items } = useStatus();
+
+  // Derive values from live status API
+  const threatItem = items.find((i: any) => i.key === "threat");
+  const gpsItem = items.find((i: any) => i.key === "gps");
+  const airspaceItem = items.find((i: any) => i.key === "airspace");
+
+  const threatValue = threatItem?.value || "NORMAL";
+  const isActive = threatValue === "CRITICAL";
+  const isCaution = threatValue === "ELEVATED";
 
   const statusColor = isActive ? "text-danger" : isCaution ? "text-amber" : "text-success";
   const statusBg = isActive ? "bg-danger-dim border-danger/30" : isCaution ? "bg-amber-dim border-amber/30" : "bg-success-dim border-success/30";
-  const statusLabel = isActive ? "ACTIVE THREAT" : isCaution ? "ELEVATED" : "COOLDOWN";
+  const statusLabel = isActive ? "ACTIVE THREAT" : isCaution ? "ELEVATED" : "NORMAL";
 
-  const gpsJammed = true;
-  const gpsSince = "Mar 18";
+  const gpsJammed = gpsItem?.value === "JAMMED";
+  const gpsTooltip = gpsItem?.tooltip || "";
+
+  const airspaceOpen = airspaceItem?.value === "OPEN";
 
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <SirenIcon className="w-3 h-3 text-cyan" weight="duotone" />
         <span className="text-[9px] font-bold uppercase tracking-[0.1em]">Situation Status</span>
-        <span className="text-[7px] font-mono text-muted-foreground ml-auto">Now</span>
+        <span className="text-[7px] font-mono text-muted-foreground ml-auto">Live</span>
       </div>
 
-      {/* Two-column layout: War Status + GPS */}
+      {/* Two-column layout: Threat Status + GPS */}
       <div className="grid grid-cols-2 gap-2 mb-2">
-        {/* War Status */}
         <div className={cn("rounded-lg p-2.5 border", statusBg)}>
           <div className="flex items-center gap-1.5 mb-2">
             {isActive ? (
@@ -361,13 +370,12 @@ function SituationCard() {
             ) : (
               <ShieldCheckIcon className="w-4 h-4 text-success" weight="fill" />
             )}
-            <span className="text-[7px] uppercase text-muted-foreground font-bold">Conflict</span>
+            <span className="text-[7px] uppercase text-muted-foreground font-bold">Threat</span>
           </div>
           <p className={cn("text-sm font-bold font-mono leading-none mb-1", statusColor)}>{statusLabel}</p>
-          <p className="text-[7px] text-muted-foreground font-mono">Silent since Mon</p>
+          <p className="text-[7px] text-muted-foreground font-mono">{threatItem?.tooltip || "Monitoring active"}</p>
         </div>
 
-        {/* GPS Status */}
         <div className={cn(
           "rounded-lg p-2.5 border",
           gpsJammed ? "bg-danger-dim border-danger/30" : "bg-success-dim border-success/30"
@@ -381,16 +389,16 @@ function SituationCard() {
             <span className="text-[7px] uppercase text-muted-foreground font-bold">GPS</span>
           </div>
           <p className={cn("text-sm font-bold font-mono leading-none mb-1", gpsJammed ? "text-danger" : "text-success")}>
-            {gpsJammed ? "JAMMED" : "NORMAL"}
+            {gpsItem?.value || "UNKNOWN"}
           </p>
-          <p className="text-[7px] text-muted-foreground font-mono">{gpsJammed ? `Since ${gpsSince}` : "All nominal"}</p>
+          <p className="text-[7px] text-muted-foreground font-mono">{gpsTooltip || "Checking status"}</p>
         </div>
       </div>
 
-      {/* Quick status row */}
+      {/* Quick status row - derived from live data */}
       <div className="grid grid-cols-2 gap-1.5">
         {([
-          { label: "Airspace", value: "OPEN", ok: true, Icon: AirplaneTiltIcon },
+          { label: "Airspace", value: airspaceItem?.value || "OPEN", ok: airspaceOpen, Icon: AirplaneTiltIcon },
           { label: "Internet", value: "STABLE", ok: true, Icon: WifiHighIcon },
           { label: "Civil Defense", value: "STANDBY", ok: true, Icon: ShieldCheckIcon },
           { label: "Power Grid", value: "NORMAL", ok: true, Icon: NavigationArrowIcon },
