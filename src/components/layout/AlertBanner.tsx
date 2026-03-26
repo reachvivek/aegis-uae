@@ -9,11 +9,12 @@ import {
   ShieldWarning, X, Siren, CheckCircle,
 } from "@phosphor-icons/react";
 import { useAlerts } from "@/hooks/useAlerts";
+import { useEarthquakes } from "@/hooks/useEarthquakes";
 import { useCrisisMode } from "@/hooks/useCrisisMode";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 type AlertSeverity = "critical" | "warning" | "advisory";
-type ModalType = "critical" | "allclear" | null;
+type ModalType = "critical" | "allclear" | "detail" | null;
 
 interface CriticalAlert {
   id: string;
@@ -120,6 +121,7 @@ const allClearAlert: CriticalAlert = {
 
 export default function AlertBanner() {
   const { alerts: apiAlerts } = useAlerts();
+  const { quakes } = useEarthquakes();
   const { crisisMode } = useCrisisMode();
   const [activeIndex, setActiveIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -137,6 +139,15 @@ export default function AlertBanner() {
   const alerts: CriticalAlert[] = (() => {
     if (apiAlerts.length === 0) return fallbackAlerts;
 
+    const parseRegions = (r: any): string[] => {
+      if (Array.isArray(r)) return r;
+      if (typeof r === "string") {
+        try { const parsed = JSON.parse(r); if (Array.isArray(parsed)) return parsed; } catch {}
+        return r ? [r] : [];
+      }
+      return [];
+    };
+
     const mapped: CriticalAlert[] = apiAlerts.map((a: any) => ({
       id: a.id,
       severity: a.severity as AlertSeverity,
@@ -147,7 +158,7 @@ export default function AlertBanner() {
       descriptionAr: a.descriptionAr || "",
       icon: categoryIcons[a.category] || <WarningIcon className="w-3 h-3" weight="duotone" />,
       source: a.source || "System",
-      regions: a.regions || [],
+      regions: parseRegions(a.regions),
       issuedAt: a.issuedAt,
       expiresAt: a.expiresAt,
     }));
@@ -332,10 +343,142 @@ export default function AlertBanner() {
   const current = bannerAlerts[activeIndex % bannerAlerts.length];
   if (!current) return null;
   const s = severityConfig[current.severity] || severityConfig.advisory;
-  const theme = modalType ? modalTheme[modalType] : null;
+  const theme = modalType && modalType !== "detail" ? modalTheme[modalType] : null;
+
+  // For detail modal, derive colors from the alert's severity
+  const detailSeverity = modalType === "detail" && modalAlert ? modalAlert.severity : null;
+  const detailConfig = detailSeverity ? severityConfig[detailSeverity] : null;
+
+  // Open any alert in detail view when clicked
+  const openDetailModal = (alert: CriticalAlert) => {
+    setModalType("detail");
+    setModalAlert(alert);
+    setModalOpen(true);
+  };
 
   return (
     <>
+      {/* Detail Modal — for any alert type clicked from the banner */}
+      {modalType === "detail" && modalAlert && (
+        <Dialog open={modalOpen} onOpenChange={(open) => { if (!open) dismissModal(); }}>
+          <DialogContent
+            showCloseButton={false}
+            className={cn(
+              "sm:max-w-lg max-h-[75vh] bg-[#0a0a0e] p-0 flex flex-col",
+              detailSeverity === "critical" ? "border-danger/40" : detailSeverity === "warning" ? "border-amber/40" : "border-blue-400/40"
+            )}
+          >
+            {/* Header */}
+            <div className={cn("flex items-center gap-3 px-5 pt-5 pb-3 border-b border-border/30 shrink-0")}>
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center border",
+                detailSeverity === "critical" ? "bg-danger/10 border-danger/20" :
+                detailSeverity === "warning" ? "bg-amber/10 border-amber/20" : "bg-blue-500/10 border-blue-500/20"
+              )}>
+                {modalAlert.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <Badge variant="outline" className={cn("text-[7px] border-0 font-bold", detailConfig?.bg, detailConfig?.text)}>
+                    {detailConfig?.label}
+                  </Badge>
+                  <Badge variant="outline" className="text-[7px] border-0 bg-muted text-muted-foreground">
+                    {modalAlert.category}
+                  </Badge>
+                </div>
+                <p className="text-[9px] font-mono text-muted-foreground">
+                  {modalAlert.source} &middot; {mounted ? formatTimeAgo(modalAlert.issuedAt) : "..."}
+                </p>
+              </div>
+              <button onClick={dismissModal} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X className="w-4 h-4" weight="bold" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 scrollbar-none">
+              <h3 className={cn("text-sm font-semibold leading-snug", detailConfig?.text)}>
+                {modalAlert.title}
+              </h3>
+              {modalAlert.titleAr && (
+                <h3 className={cn("text-sm font-semibold leading-snug text-right", detailConfig?.text)} dir="rtl">
+                  {modalAlert.titleAr}
+                </h3>
+              )}
+
+              {modalAlert.description && (
+                <p className="text-xs text-muted-foreground leading-relaxed">{modalAlert.description}</p>
+              )}
+              {modalAlert.descriptionAr && (
+                <p className="text-xs text-muted-foreground leading-relaxed text-right" dir="rtl">{modalAlert.descriptionAr}</p>
+              )}
+
+              {/* Seismic detail: show individual earthquakes */}
+              {modalAlert.category === "SEISMIC" && quakes.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Recent Seismic Events</p>
+                  <div className="space-y-1.5">
+                    {quakes.slice(0, 10).map((q: any, i: number) => {
+                      const mag = q.magnitude || 0;
+                      const sevColor = mag >= 5 ? "text-danger" : mag >= 4 ? "text-amber" : "text-blue-400";
+                      return (
+                        <div key={i} className="flex items-center gap-2.5 bg-card/50 border border-border/30 rounded-lg px-3 py-2">
+                          <div className={cn("text-lg font-bold font-mono w-10 text-center", sevColor)}>
+                            {mag.toFixed(1)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-foreground/80 truncate">{q.place || q.location || "Unknown location"}</p>
+                            <p className="text-[8px] font-mono text-muted-foreground">
+                              Depth: {q.depth || "N/A"}km &middot; {mounted ? formatTimeAgo(q.time || q.timestamp) : "..."}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className={cn(
+                            "text-[7px] border-0 font-bold",
+                            mag >= 5 ? "bg-danger-dim text-danger" : mag >= 4 ? "bg-amber-dim text-amber" : "bg-blue-500/10 text-blue-400"
+                          )}>
+                            M{mag.toFixed(1)}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Meta info */}
+              <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground border-t border-border/30 pt-3">
+                <div className="flex items-center gap-1.5">
+                  <MapPinIcon className="w-2.5 h-2.5" weight="bold" />
+                  {modalAlert.regions.join(", ")}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <ClockIcon className="w-2.5 h-2.5" weight="bold" />
+                  Until {new Date(modalAlert.expiresAt).toLocaleTimeString("en-US", {
+                    hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dubai",
+                  })} GST
+                </div>
+              </div>
+
+              {/* Emergency contacts */}
+              <div className={cn(
+                "border rounded-lg p-3",
+                detailSeverity === "critical" ? "bg-danger/5 border-danger/15" :
+                detailSeverity === "warning" ? "bg-amber/5 border-amber/15" : "bg-blue-500/5 border-blue-500/15"
+              )}>
+                <p className={cn("text-[9px] font-bold uppercase tracking-wider mb-1.5", detailConfig?.text)}>
+                  Emergency Contacts / جهات الطوارئ
+                </p>
+                <div className="flex gap-4 text-[9px] font-mono text-muted-foreground">
+                  <span>Emergency <strong className={detailConfig?.text}>999</strong></span>
+                  <span>Civil Defense <strong className={detailConfig?.text}>997</strong></span>
+                  <span>Ambulance <strong className={detailConfig?.text}>998</strong></span>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Unified Alert Modal (critical OR all-clear) */}
       {theme && (
         <Dialog open={modalOpen} onOpenChange={(open) => { if (!open) dismissModal(); }}>
@@ -438,14 +581,15 @@ export default function AlertBanner() {
         </Dialog>
       )}
 
-      {/* Regular banner */}
+      {/* Regular banner — clickable to open detail */}
       <div
         className={cn(
-          "w-full border-b shrink-0 transition-colors duration-500 border-l-2",
+          "w-full border-b shrink-0 transition-colors duration-500 border-l-2 cursor-pointer",
           s.bg, s.border,
           current.severity === "critical" ? "border-l-danger" :
           current.severity === "warning" ? "border-l-amber" : "border-l-blue-400"
         )}
+        onClick={() => openDetailModal(current)}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
@@ -469,17 +613,12 @@ export default function AlertBanner() {
               <p className={cn("text-[11px] font-medium truncate", s.text)}>{current.title}</p>
             </div>
 
-            {current.severity === "critical" && (
-              <button
-                onClick={() => {
-                  dismissedIds.current.delete(current.id);
-                  openModal("critical", current);
-                }}
-                className="text-[8px] text-danger font-bold hover:underline cursor-pointer shrink-0"
-              >
-                VIEW
-              </button>
-            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); openDetailModal(current); }}
+              className={cn("text-[8px] font-bold hover:underline cursor-pointer shrink-0", s.text)}
+            >
+              VIEW
+            </button>
 
             <span className="hidden lg:flex items-center gap-0.5 text-[7px] font-mono text-muted-foreground shrink-0">
               <MapPinIcon className="w-2 h-2" weight="bold" />

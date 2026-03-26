@@ -9,6 +9,7 @@ import {
   ArrowsOutIcon, XIcon, CaretUpIcon, CaretDownIcon,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
+import { BiTooltip } from "@/components/ui/bi-tooltip";
 
 import StatusTicker from "@/components/layout/StatusTicker";
 import Header from "@/components/layout/Header";
@@ -23,6 +24,7 @@ import ThreatTimeline from "@/components/threat/ThreatTimeline";
 import EvacuationRoutes from "@/components/evacuation/EvacuationRoutes";
 import ShelterFinder from "@/components/shelter/ShelterFinder";
 import LatestDevelopments from "@/components/intel/LatestDevelopments";
+import OnboardingModal from "@/components/onboarding/OnboardingModal";
 import { useSSE } from "@/hooks/useSSE";
 import { useAlertSound } from "@/hooks/useAlertSound";
 import { useTracking } from "@/hooks/useTracking";
@@ -111,43 +113,52 @@ export default function Dashboard() {
                 </Tabs>
 
                 {/* Collapse/expand content toggle */}
-                <button
-                  onClick={() => setCollapsed(collapsed === "content" || collapsed === "both" ? null : "content")}
-                  className={cn(
-                    "shrink-0 h-7 w-7 rounded-md flex items-center justify-center transition-colors border border-border/50",
-                    collapsed === "content" || collapsed === "both" ? "bg-teal/15 text-teal border-teal/30" : "bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/80"
-                  )}
-                  title={collapsed === "content" || collapsed === "both" ? "Expand feed" : "Collapse feed"}
+                <BiTooltip
+                  en={collapsed === "content" || collapsed === "both" ? "Expand feed" : "Collapse feed"}
+                  ar={collapsed === "content" || collapsed === "both" ? "توسيع الموجز" : "طي الموجز"}
                 >
-                  {collapsed === "content" || collapsed === "both"
-                    ? <CaretDownIcon className="w-3.5 h-3.5" weight="bold" />
-                    : <CaretUpIcon className="w-3.5 h-3.5" weight="bold" />}
-                </button>
+                  <button
+                    onClick={() => setCollapsed(collapsed === "content" || collapsed === "both" ? null : "content")}
+                    className={cn(
+                      "shrink-0 h-7 w-7 rounded-md flex items-center justify-center transition-colors border border-border/50",
+                      collapsed === "content" || collapsed === "both" ? "bg-teal/15 text-teal border-teal/30" : "bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                    )}
+                  >
+                    {collapsed === "content" || collapsed === "both"
+                      ? <CaretDownIcon className="w-3.5 h-3.5" weight="bold" />
+                      : <CaretUpIcon className="w-3.5 h-3.5" weight="bold" />}
+                  </button>
+                </BiTooltip>
 
                 {/* Maximize button */}
-                <button
-                  onClick={() => { setMaximized(true); setCollapsed("both"); }}
-                  className="shrink-0 h-7 w-7 rounded-md flex items-center justify-center bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors border border-border/50"
-                  title="Expand to full view"
-                >
-                  <ArrowsOutIcon className="w-3.5 h-3.5" weight="bold" />
-                </button>
+                <BiTooltip en="Expand to full view" ar="توسيع للعرض الكامل">
+                  <button
+                    onClick={() => { setMaximized(true); setCollapsed("both"); }}
+                    className="shrink-0 h-7 w-7 rounded-md flex items-center justify-center bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors border border-border/50"
+                  >
+                    <ArrowsOutIcon className="w-3.5 h-3.5" weight="bold" />
+                  </button>
+                </BiTooltip>
 
-                <button
-                  onClick={() => setShelterOpen(true)}
-                  className="shrink-0 h-7 px-2 sm:px-2.5 rounded-md flex items-center gap-1 bg-purple-500/15 text-purple-400 text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-purple-500/25 border border-purple-500/30"
-                >
-                  <RadioactiveIcon className="w-3 h-3" weight="bold" />
-                  <span className="hidden sm:inline">SAFE</span>
-                </button>
+                <BiTooltip en="Find nearby shelters & safe zones" ar="ابحث عن الملاجئ ومناطق الأمان القريبة">
+                  <button
+                    onClick={() => setShelterOpen(true)}
+                    className="shrink-0 h-7 px-2 sm:px-2.5 rounded-md flex items-center gap-1 bg-purple-500/15 text-purple-400 text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-purple-500/25 border border-purple-500/30"
+                  >
+                    <RadioactiveIcon className="w-3 h-3" weight="bold" />
+                    <span className="hidden sm:inline">SAFE</span>
+                  </button>
+                </BiTooltip>
 
-                <button
-                  onClick={() => setEvacOpen(true)}
-                  className="shrink-0 h-7 px-2.5 sm:px-3 rounded-md flex items-center gap-1 bg-danger text-white text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-danger/80 pulse-live glow-red border border-danger/50"
-                >
-                  <PathIcon className="w-3 h-3" weight="bold" />
-                  <span className="hidden sm:inline">EVAC</span>
-                </button>
+                <BiTooltip en="Evacuation routes & border crossings" ar="مسارات الإخلاء والمعابر الحدودية">
+                  <button
+                    onClick={() => setEvacOpen(true)}
+                    className="shrink-0 h-7 px-2.5 sm:px-3 rounded-md flex items-center gap-1 bg-danger text-white text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-danger/80 pulse-live glow-red border border-danger/50"
+                  >
+                    <PathIcon className="w-3 h-3" weight="bold" />
+                    <span className="hidden sm:inline">EVAC</span>
+                  </button>
+                </BiTooltip>
               </div>
 
               {/* Tab content - collapsible via click, takes remaining space */}
@@ -240,6 +251,9 @@ export default function Dashboard() {
 
       {/* Evac modal */}
       <EvacuationRoutes open={evacOpen} onOpenChange={setEvacOpen} />
+
+      {/* Onboarding for first-time users */}
+      <OnboardingModal />
     </div>
   );
 }
