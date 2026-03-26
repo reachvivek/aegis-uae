@@ -11,6 +11,7 @@ import {
   AirplaneTiltIcon, CloudRainIcon, WarningIcon, WaveSineIcon,
 } from "@phosphor-icons/react";
 import { useEarthquakes } from "@/hooks/useEarthquakes";
+import { useAlerts } from "@/hooks/useAlerts";
 
 // Types
 interface Airport {
@@ -119,7 +120,13 @@ export default function StabilityMap() {
     new Set(["flights", "weather", "airspace", "seismic"])
   );
   const { quakes } = useEarthquakes();
+  const { alerts } = useAlerts();
   const layerGroups = useRef<Record<string, any>>({});
+  const crisisLayerRef = useRef<any>(null);
+  const airportMarkersRef = useRef<any[]>([]);
+  const airportRingsRef = useRef<any[]>([]);
+  const airportLabelsRef = useRef<any[]>([]);
+  const hasCritical = alerts.some((a: any) => a.severity === "critical");
 
   const toggleLayer = (layer: LayerToggle) => {
     setActiveLayers((prev) => {
@@ -166,23 +173,28 @@ export default function StabilityMap() {
       leafletMap.current = map;
 
       // === AIRPORTS (always visible) ===
+      airportMarkersRef.current = [];
+      airportRingsRef.current = [];
+      airportLabelsRef.current = [];
       airports.forEach((ap) => {
         // Pulsing ring
         const pulseRing = L.circleMarker([ap.lat, ap.lng], {
           radius: 18, color: delayColors[ap.delays], fillColor: delayColors[ap.delays],
           fillOpacity: 0.08, weight: 1, opacity: 0.3, className: "pulse-live",
         }).addTo(map);
+        airportRingsRef.current.push({ marker: pulseRing, airport: ap });
 
         // Core dot
         const marker = L.circleMarker([ap.lat, ap.lng], {
           radius: 6, color: delayColors[ap.delays], fillColor: delayColors[ap.delays],
           fillOpacity: 0.9, weight: 2, opacity: 1,
         }).addTo(map);
+        airportMarkersRef.current.push({ marker, airport: ap });
 
         // Label
         const label = L.divIcon({
           className: "airport-label",
-          html: `<div style="
+          html: `<div class="ap-label-text" data-code="${ap.code}" style="
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
             font-weight: 700;
@@ -194,7 +206,8 @@ export default function StabilityMap() {
           iconSize: [40, 16],
           iconAnchor: [20, -10],
         });
-        L.marker([ap.lat, ap.lng], { icon: label, interactive: false }).addTo(map);
+        const labelMarker = L.marker([ap.lat, ap.lng], { icon: label, interactive: false }).addTo(map);
+        airportLabelsRef.current.push({ marker: labelMarker, airport: ap });
 
         // Popup
         marker.bindPopup(`
@@ -395,6 +408,179 @@ export default function StabilityMap() {
     })();
   }, [quakes]);
 
+  // Crisis mode: flash airport markers red
+  useEffect(() => {
+    if (!ready) return;
+    const color = hasCritical ? "#FF4757" : undefined;
+
+    airportMarkersRef.current.forEach(({ marker, airport }: { marker: any; airport: Airport }) => {
+      const c = color || delayColors[airport.delays];
+      marker.setStyle({ color: c, fillColor: c });
+    });
+    airportRingsRef.current.forEach(({ marker, airport }: { marker: any; airport: Airport }) => {
+      const c = color || delayColors[airport.delays];
+      marker.setStyle({ color: c, fillColor: c });
+    });
+    // Update label colors via DOM
+    document.querySelectorAll(".ap-label-text").forEach((el) => {
+      const code = el.getAttribute("data-code");
+      const ap = airports.find((a) => a.code === code);
+      if (el instanceof HTMLElement) {
+        el.style.color = color || (ap ? delayColors[ap.delays] : "#2ED573");
+      }
+    });
+  }, [hasCritical, ready]);
+
+  // Crisis mode: missile interception visualization
+  useEffect(() => {
+    if (!leafletMap.current || !ready) return;
+
+    (async () => {
+      const L = (await import("leaflet")).default;
+      const map = leafletMap.current;
+
+      // Clear previous crisis layer
+      if (crisisLayerRef.current) {
+        map.removeLayer(crisisLayerRef.current);
+        crisisLayerRef.current = null;
+      }
+
+      if (!hasCritical) return;
+
+      const crisisGroup = L.layerGroup();
+
+      // ── UAE center & defense shield dome ──
+      const uaeCenter: [number, number] = [24.8, 54.8];
+
+      // Multi-ring shield dome (Iron Dome / THAAD aesthetic)
+      [120000, 95000, 70000].forEach((radius, i) => {
+        const opacity = 0.12 - i * 0.03;
+        L.circle(uaeCenter, {
+          radius,
+          color: "rgba(255,176,32,0.4)",
+          fillColor: `rgba(255,176,32,${opacity})`,
+          fillOpacity: 1, weight: 1, dashArray: "6, 8",
+          className: i === 0 ? "pulse-live" : "",
+        }).addTo(crisisGroup);
+      });
+
+      // Shield arc segments (like umbrella ribs)
+      for (let angle = 180; angle <= 360; angle += 20) {
+        const rad = (angle * Math.PI) / 180;
+        const endLat = uaeCenter[0] + 1.1 * Math.sin(rad);
+        const endLng = uaeCenter[1] + 1.1 * Math.cos(rad);
+        L.polyline([uaeCenter, [endLat, endLng]], {
+          color: "rgba(255,176,32,0.15)", weight: 1, dashArray: "3, 6",
+        }).addTo(crisisGroup);
+      }
+
+      // Shield dome label
+      const shieldLabel = L.divIcon({
+        className: "airport-label",
+        html: `<div style="
+          font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;
+          color:#FFB020;text-shadow:0 0 10px rgba(0,0,0,0.9);white-space:nowrap;
+          background:rgba(255,176,32,0.1);padding:3px 8px;border-radius:4px;
+          border:1px solid rgba(255,176,32,0.25);letter-spacing:0.1em;
+        ">AIR DEFENSE SHIELD ACTIVE</div>`,
+        iconSize: [180, 20], iconAnchor: [90, 50],
+      });
+      L.marker(uaeCenter, { icon: shieldLabel, interactive: false }).addTo(crisisGroup);
+
+      // ── Multiple missile trajectories ──
+      const missiles: { origin: [number, number]; intercept: [number, number]; label: string }[] = [
+        { origin: [30.0, 49.5], intercept: [27.2, 52.0], label: "TBM-1" },
+        { origin: [29.2, 50.8], intercept: [26.5, 53.5], label: "TBM-2" },
+        { origin: [28.5, 51.5], intercept: [26.0, 53.8], label: "CM-1" },
+      ];
+
+      missiles.forEach((m, idx) => {
+        // Threat origin pulse
+        L.circleMarker(m.origin, {
+          radius: 8, color: "#FF4757", fillColor: "#FF4757",
+          fillOpacity: 0.5, weight: 2, opacity: 0.8, className: "pulse-live",
+        }).addTo(crisisGroup);
+
+        // Outer glow at origin
+        L.circleMarker(m.origin, {
+          radius: 16, color: "#FF4757", fillColor: "#FF4757",
+          fillOpacity: 0.08, weight: 1, opacity: 0.4, className: "pulse-live",
+        }).addTo(crisisGroup);
+
+        // Missile trajectory (incoming threat - solid red line)
+        const midLat = (m.origin[0] + m.intercept[0]) / 2;
+        const midLng = (m.origin[1] + m.intercept[1]) / 2;
+        L.polyline([m.origin, [midLat + 0.3, midLng], m.intercept], {
+          color: "#FF4757", weight: 2.5, dashArray: "12, 4",
+          opacity: 0.85, smoothFactor: 3,
+        }).addTo(crisisGroup);
+
+        // Missile head marker (small triangle-ish)
+        const missileHead = L.divIcon({
+          className: "airport-label",
+          html: `<div style="
+            font-size:14px;filter:drop-shadow(0 0 6px rgba(255,71,87,0.8));
+            animation:pulse-glow 1s ease-in-out infinite;
+          ">🚀</div>`,
+          iconSize: [20, 20], iconAnchor: [10, 10],
+        });
+        L.marker(m.intercept, { icon: missileHead, interactive: false }).addTo(crisisGroup);
+
+        // Interception burst - multi-ring explosion
+        L.circleMarker(m.intercept, {
+          radius: 20, color: "#FFB020", fillColor: "#FFB020",
+          fillOpacity: 0.08, weight: 1, opacity: 0.4, className: "pulse-live",
+        }).addTo(crisisGroup);
+        L.circleMarker(m.intercept, {
+          radius: 12, color: "#FFB020", fillColor: "#FFB020",
+          fillOpacity: 0.25, weight: 1.5, opacity: 0.7,
+        }).addTo(crisisGroup);
+        L.circleMarker(m.intercept, {
+          radius: 5, color: "#fff", fillColor: "#FFB020",
+          fillOpacity: 0.9, weight: 2, opacity: 1,
+        }).addTo(crisisGroup);
+
+        // Interceptor trajectory (from UAE toward interception point - teal/green)
+        const interceptorOrigin: [number, number] = [
+          uaeCenter[0] + (idx - 1) * 0.3,
+          uaeCenter[1] - 0.5,
+        ];
+        L.polyline([interceptorOrigin, m.intercept], {
+          color: "#FFB020", weight: 1.5, dashArray: "4, 6", opacity: 0.6,
+        }).addTo(crisisGroup);
+
+        // Threat label
+        const threatLabel = L.divIcon({
+          className: "airport-label",
+          html: `<div style="
+            font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;
+            color:#FF4757;text-shadow:0 0 8px rgba(0,0,0,0.9);white-space:nowrap;
+            background:rgba(255,71,87,0.12);padding:2px 5px;border-radius:3px;
+            border:1px solid rgba(255,71,87,0.25);
+          ">${m.label} — INTERCEPTED</div>`,
+          iconSize: [120, 16], iconAnchor: [60, -14],
+        });
+        L.marker(m.intercept, { icon: threatLabel, interactive: false }).addTo(crisisGroup);
+      });
+
+      // Origin zone label
+      const originLabel = L.divIcon({
+        className: "airport-label",
+        html: `<div style="
+          font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;
+          color:#FF4757;text-shadow:0 0 10px rgba(0,0,0,0.9);white-space:nowrap;
+          background:rgba(255,71,87,0.15);padding:3px 8px;border-radius:4px;
+          border:1px solid rgba(255,71,87,0.3);letter-spacing:0.05em;
+        ">HOSTILE LAUNCH ZONE</div>`,
+        iconSize: [140, 20], iconAnchor: [70, -20],
+      });
+      L.marker([29.2, 50.2], { icon: originLabel, interactive: false }).addTo(crisisGroup);
+
+      crisisGroup.addTo(map);
+      crisisLayerRef.current = crisisGroup;
+    })();
+  }, [hasCritical, ready]);
+
   // Toggle layers
   useEffect(() => {
     if (!leafletMap.current) return;
@@ -494,6 +680,26 @@ export default function StabilityMap() {
             <CrosshairIcon className="w-3.5 h-3.5" weight="bold" />
           </Button>
         </div>
+
+        {/* Crisis mode safety overlay */}
+        {hasCritical && ready && (
+          <div className="absolute top-2 right-2 z-[1000] max-w-[220px] animate-in fade-in slide-in-from-top-2 duration-500">
+            <div className="bg-[#0a0406]/95 backdrop-blur-md border border-danger/30 rounded-lg p-3 shadow-[0_0_30px_rgba(255,71,87,0.15)]">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="relative flex h-2 w-2"><span className="animate-ping absolute h-full w-full rounded-full bg-danger opacity-75" /><span className="relative rounded-full h-2 w-2 bg-danger" /></span>
+                <span className="text-[9px] font-bold text-danger tracking-widest uppercase">Interception In Progress</span>
+              </div>
+              <p className="text-[9px] leading-relaxed text-foreground/80 mb-2">
+                Ensure you are away from <strong className="text-danger">windows, glass surfaces & open areas</strong>. Move to an interior room or shelter immediately.
+              </p>
+              <div className="border-t border-danger/15 pt-2 space-y-1">
+                <p className="text-[8px] font-mono text-muted-foreground">Emergency: <span className="text-danger font-bold">999</span></p>
+                <p className="text-[8px] font-mono text-muted-foreground">Civil Defense: <span className="text-danger font-bold">997</span></p>
+                <p className="text-[8px] font-mono text-muted-foreground">Ambulance: <span className="text-danger font-bold">998</span></p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Loading state */}
         {!ready && (

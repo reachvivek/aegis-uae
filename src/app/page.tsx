@@ -26,6 +26,7 @@ import LatestDevelopments from "@/components/intel/LatestDevelopments";
 import { useSSE } from "@/hooks/useSSE";
 import { useAlertSound } from "@/hooks/useAlertSound";
 import { useTracking } from "@/hooks/useTracking";
+import { useCrisisMode } from "@/hooks/useCrisisMode";
 
 type RightTab = "news" | "connectivity" | "threats" | "intel";
 
@@ -33,6 +34,7 @@ export default function Dashboard() {
   useSSE();
   useAlertSound();
   useTracking();
+  useCrisisMode();
   const [tab, setTab] = useState<RightTab>("news");
   const [evacOpen, setEvacOpen] = useState(false);
   const [shelterOpen, setShelterOpen] = useState(false);

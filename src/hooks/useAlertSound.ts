@@ -11,36 +11,57 @@ function playAlertTone(severity: "critical" | "warning") {
     const now = ctx.currentTime;
 
     if (severity === "critical") {
-      // Critical: WEA-style dual-tone burst (853Hz + 960Hz alternating)
-      // 3 bursts, each 0.25s, 0.1s gap
-      for (let burst = 0; burst < 3; burst++) {
-        const startTime = now + burst * 0.35;
+      // Critical: Loud continuous siren ~5 seconds
+      const duration = 5;
 
-        // First tone (853 Hz)
-        const osc1 = ctx.createOscillator();
-        const gain1 = ctx.createGain();
-        osc1.type = "square";
-        osc1.frequency.value = 853;
-        gain1.gain.setValueAtTime(0.15, startTime);
-        gain1.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
-        osc1.connect(gain1).connect(ctx.destination);
-        osc1.start(startTime);
-        osc1.stop(startTime + 0.25);
-
-        // Second tone (960 Hz) - offset by half
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.type = "square";
-        osc2.frequency.value = 960;
-        gain2.gain.setValueAtTime(0.12, startTime);
-        gain2.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
-        osc2.connect(gain2).connect(ctx.destination);
-        osc2.start(startTime);
-        osc2.stop(startTime + 0.25);
+      // Main siren - sweeping sawtooth
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = "sawtooth";
+      for (let t = 0; t < duration; t += 0.5) {
+        osc1.frequency.setValueAtTime(600, now + t);
+        osc1.frequency.linearRampToValueAtTime(1200, now + t + 0.25);
+        osc1.frequency.linearRampToValueAtTime(600, now + t + 0.5);
       }
+      gain1.gain.setValueAtTime(0.35, now);
+      gain1.gain.setValueAtTime(0.35, now + duration - 0.3);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      osc1.connect(gain1).connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + duration);
 
-      // Close context after tones finish
-      setTimeout(() => ctx.close(), 1500);
+      // Harmonic layer
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = "square";
+      for (let t = 0; t < duration; t += 0.5) {
+        osc2.frequency.setValueAtTime(800, now + t);
+        osc2.frequency.linearRampToValueAtTime(1400, now + t + 0.25);
+        osc2.frequency.linearRampToValueAtTime(800, now + t + 0.5);
+      }
+      gain2.gain.setValueAtTime(0.2, now);
+      gain2.gain.setValueAtTime(0.2, now + duration - 0.3);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      osc2.connect(gain2).connect(ctx.destination);
+      osc2.start(now);
+      osc2.stop(now + duration);
+
+      // Pulsing low bass for urgency
+      const osc3 = ctx.createOscillator();
+      const gain3 = ctx.createGain();
+      osc3.type = "sine";
+      osc3.frequency.value = 150;
+      for (let t = 0; t < duration; t += 0.25) {
+        gain3.gain.setValueAtTime(0.25, now + t);
+        gain3.gain.linearRampToValueAtTime(0.05, now + t + 0.125);
+        gain3.gain.linearRampToValueAtTime(0.25, now + t + 0.25);
+      }
+      gain3.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      osc3.connect(gain3).connect(ctx.destination);
+      osc3.start(now);
+      osc3.stop(now + duration);
+
+      setTimeout(() => ctx.close(), (duration + 0.5) * 1000);
     } else {
       // Warning: gentler two-tone chime (440Hz + 554Hz)
       const osc = ctx.createOscillator();
