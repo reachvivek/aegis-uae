@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
@@ -71,6 +72,7 @@ export default function RootLayout({
     <html lang="en" className={cn("dark", inter.variable, jetbrains.variable)} suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
+        <Analytics />
       </body>
     </html>
   );
