@@ -121,7 +121,7 @@ export default function NewsTicker() {
         text: item.headline,
         severity: item.severity === "critical" ? "breaking" as const : item.severity === "warning" ? "alert" as const : "info" as const,
         time: item.timestamp ? new Date(item.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "",
-        detail: item.headline,
+        detail: item.detail || "",
         source: item.source || "Feed",
       }))
     : fallbackTickerItems;
@@ -164,16 +164,27 @@ export default function NewsTicker() {
               </span>
             </span>
           }
-          description={selected.text}
           footer={
             <Button variant="outline" size="sm" onClick={() => setSelected(null)}>
               Close
             </Button>
           }
         >
-          <p className="text-xs leading-relaxed text-foreground/70">
-            {selected.detail}
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-foreground leading-snug">
+              {selected.text}
+            </p>
+            {selected.detail && selected.detail !== selected.text && (
+              <p className="text-xs leading-relaxed text-foreground/70">
+                {selected.detail}
+              </p>
+            )}
+            {(!selected.detail || selected.detail === selected.text) && (
+              <p className="text-xs text-muted-foreground italic">
+                Full article details not available. Check the source ({selected.source}) for complete coverage.
+              </p>
+            )}
+          </div>
         </StandardModal>
       )}
     </>

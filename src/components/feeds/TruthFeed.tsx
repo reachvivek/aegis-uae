@@ -55,6 +55,7 @@ interface Article {
   tag: string;
   tagColor: string;
   categories: Category[];
+  link?: string;
 }
 
 const fallbackArticles: Article[] = [
@@ -80,10 +81,11 @@ export default function TruthFeed() {
         title: a.title,
         source: a.source || "Feed",
         verified: true,
-        publishedAt: a.pubDate || new Date().toISOString(),
+        publishedAt: a.publishedAt || a.pubDate || new Date().toISOString(),
         tag: (a.category || "NEWS").toUpperCase(),
         tagColor: a.severity === "critical" ? "text-danger bg-danger-dim" : a.severity === "warning" ? "text-amber bg-amber-dim" : "text-teal bg-teal-dim",
         categories: ["all"] as Category[],
+        link: a.link || "",
       }))
     : fallbackArticles;
 
@@ -176,7 +178,7 @@ export default function TruthFeed() {
 
             {/* Articles */}
             {filtered.map((a) => (
-              <a key={a.id} href="#" className="block group">
+              <a key={a.id} href={a.link || "#"} target={a.link ? "_blank" : undefined} rel={a.link ? "noopener noreferrer" : undefined} className="block group">
                 <div className="border border-border/40 hover:border-border rounded-lg p-2 transition-colors bg-card/40 hover:bg-card/80">
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <Badge variant="outline" className={cn("text-[6px] border-0 px-1 py-0", a.tagColor)}>
@@ -190,6 +192,12 @@ export default function TruthFeed() {
                   <p className="text-[10px] font-medium text-foreground/80 leading-snug line-clamp-2 group-hover:text-foreground transition-colors">
                     {a.title}
                   </p>
+                  {a.link && (
+                    <div className="flex items-center gap-0.5 mt-1">
+                      <ArrowSquareOutIcon className="w-2 h-2 text-teal/60 group-hover:text-teal transition-colors" weight="bold" />
+                      <span className="text-[7px] text-teal/60 group-hover:text-teal transition-colors font-mono">Read more</span>
+                    </div>
+                  )}
                 </div>
               </a>
             ))}

@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 import {
   TargetIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon,
   CrosshairIcon, ArrowsOutIcon, ArrowsInIcon,
-  AirplaneTiltIcon, CloudRainIcon, WarningIcon,
+  AirplaneTiltIcon, CloudRainIcon, WarningIcon, WaveSineIcon,
 } from "@phosphor-icons/react";
+import { useEarthquakes } from "@/hooks/useEarthquakes";
 
 // Types
 interface Airport {
@@ -96,14 +97,16 @@ const zones = [
   { label: "Rerouted", color: "bg-amber", count: 1 },
   { label: "Restricted", color: "bg-danger", count: 1 },
   { label: "Weather", color: "bg-blue-500", count: 4 },
+  { label: "Seismic", color: "bg-yellow-400", count: 0 },
 ];
 
-type LayerToggle = "flights" | "weather" | "airspace";
+type LayerToggle = "flights" | "weather" | "airspace" | "seismic";
 
 const layerConfig: Record<LayerToggle, { Icon: React.ComponentType<any>; label: string }> = {
   flights: { Icon: AirplaneTiltIcon, label: "Flights" },
   weather: { Icon: CloudRainIcon, label: "Weather" },
   airspace: { Icon: WarningIcon, label: "Airspace" },
+  seismic: { Icon: WaveSineIcon, label: "Seismic" },
 };
 
 export default function StabilityMap() {
@@ -113,8 +116,9 @@ export default function StabilityMap() {
   const [fullscreen, setFullscreen] = useState(false);
   const [selectedAirport, setSelectedAirport] = useState<Airport | null>(null);
   const [activeLayers, setActiveLayers] = useState<Set<LayerToggle>>(
-    new Set(["flights", "weather", "airspace"])
+    new Set(["flights", "weather", "airspace", "seismic"])
   );
+  const { quakes } = useEarthquakes();
   const layerGroups = useRef<Record<string, any>>({});
 
   const toggleLayer = (layer: LayerToggle) => {
@@ -283,6 +287,11 @@ export default function StabilityMap() {
       airspaceGroup.addTo(map);
       layerGroups.current.airspace = airspaceGroup;
 
+      // === SEISMIC / EARTHQUAKE MARKERS ===
+      const seismicGroup = L.layerGroup();
+      layerGroups.current.seismic = seismicGroup;
+      seismicGroup.addTo(map);
+
       // Custom popup/tooltip styles
       const style = document.createElement("style");
       style.textContent = `
@@ -321,6 +330,70 @@ export default function StabilityMap() {
       }
     };
   }, []);
+
+  // Update seismic markers when earthquake data changes
+  useEffect(() => {
+    const group = layerGroups.current.seismic;
+    if (!group || !leafletMap.current) return;
+
+    (async () => {
+      const L = (await import("leaflet")).default;
+      group.clearLayers();
+
+      quakes.forEach((q: any) => {
+        if (!q.lat || !q.lng) return;
+        const mag = q.magnitude || 0;
+        const radius = Math.max(4, mag * 3);
+        const color = mag >= 5 ? "#FF4757" : mag >= 4 ? "#FFB020" : "#FFD93D";
+        const fillOpacity = mag >= 5 ? 0.5 : mag >= 4 ? 0.35 : 0.25;
+
+        // Outer pulse ring
+        L.circleMarker([q.lat, q.lng], {
+          radius: radius + 8,
+          color,
+          fillColor: color,
+          fillOpacity: 0.08,
+          weight: 1,
+          opacity: 0.3,
+          className: mag >= 4 ? "pulse-live" : "",
+        }).addTo(group);
+
+        // Core marker
+        const marker = L.circleMarker([q.lat, q.lng], {
+          radius,
+          color,
+          fillColor: color,
+          fillOpacity,
+          weight: 1.5,
+          opacity: 0.8,
+        }).addTo(group);
+
+        const timeStr = q.time ? new Date(q.time).toLocaleString("en-US", { timeZone: "Asia/Dubai", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+
+        marker.bindPopup(`
+          <div style="font-family:Inter,sans-serif;font-size:12px;line-height:1.5;min-width:180px;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px;color:${color};">M${mag.toFixed(1)} Earthquake</div>
+            <div style="color:#7C7C8A;margin-bottom:6px;">${q.place || "Unknown location"}</div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+              <span style="color:#7C7C8A;">Depth</span>
+              <span style="font-weight:600;">${q.depth?.toFixed(1) || "?"}km</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+              <span style="color:#7C7C8A;">Time</span>
+              <span style="font-weight:600;">${timeStr}</span>
+            </div>
+            ${q.tsunami ? '<div style="color:#FF4757;font-weight:700;margin-top:4px;">TSUNAMI WARNING</div>' : ""}
+            ${q.url ? `<a href="${q.url}" target="_blank" rel="noopener noreferrer" style="color:#00E5B8;font-size:11px;text-decoration:underline;display:block;margin-top:6px;">View on USGS</a>` : ""}
+          </div>
+        `, { className: "custom-popup", closeButton: false });
+
+        marker.bindTooltip(`M${mag.toFixed(1)} - ${q.place || ""}`, {
+          className: "custom-tooltip",
+          permanent: false,
+        });
+      });
+    })();
+  }, [quakes]);
 
   // Toggle layers
   useEffect(() => {
@@ -382,7 +455,7 @@ export default function StabilityMap() {
 
         {/* Layer toggles */}
         <div className="absolute top-2 left-2 z-[1000] flex flex-col gap-1">
-          {(["flights", "weather", "airspace"] as const).map((layer) => {
+          {(["flights", "weather", "airspace", "seismic"] as const).map((layer) => {
             const { Icon, label } = layerConfig[layer];
             const active = activeLayers.has(layer);
             return (

@@ -47,18 +47,41 @@ export async function processStatus(): Promise<void> {
       }
     }
 
-    // Threat level (derived from GDELT events)
+    // Threat level (derived from GDELT events + news)
     const intel = await getCache("intel");
+    let escalations = 0;
     if (intel) {
-      const escalations = (intel.data.developments || []).filter((d: any) => d.sentiment === "escalation").length;
-      const threatStatus = escalations >= 5 ? "CRITICAL" : escalations >= 2 ? "ELEVATED" : "NORMAL";
-      await upsertStatus("threat", threatStatus,
-        escalations >= 5 ? "critical" : escalations >= 2 ? "elevated" : "normal",
-        `${escalations} escalation events detected in recent coverage`);
+      escalations = (intel.data.developments || []).filter((d: any) => d.sentiment === "escalation").length;
     }
+    // Also check news for threat keywords
+    const newsForThreat = await getCache("news");
+    if (newsForThreat) {
+      const threatArticles = (newsForThreat.data.articles || []).filter((a: any) =>
+        (a.title || "").toLowerCase().match(/attack|missile|drone strike|intercept|conflict/)
+      ).length;
+      escalations += Math.floor(threatArticles / 2);
+    }
+    const threatStatus = escalations >= 5 ? "CRITICAL" : escalations >= 2 ? "ELEVATED" : "NORMAL";
+    await upsertStatus("threat", threatStatus,
+      escalations >= 5 ? "critical" : escalations >= 2 ? "elevated" : "normal",
+      escalations > 0
+        ? `${escalations} escalation events detected in recent coverage`
+        : "No active threats detected. Monitoring ongoing.");
 
-    // GPS status (derived from GDELT - look for GPS jamming articles)
-    await upsertStatus("gps", "JAMMED", "critical", "GPS jamming reported across UAE since Mar 18");
+    // GPS status - derive from news mentioning GPS/jamming
+    const news = await getCache("news");
+    let gpsJammed = false;
+    if (news) {
+      const articles = news.data.articles || [];
+      gpsJammed = articles.some((a: any) =>
+        (a.title || "").toLowerCase().match(/gps.*(jam|spoof|disrupt)/i)
+      );
+    }
+    if (gpsJammed) {
+      await upsertStatus("gps", "JAMMED", "critical", "GPS jamming/spoofing reported in recent news coverage");
+    } else {
+      await upsertStatus("gps", "NORMAL", "normal", "No GPS disruptions currently reported");
+    }
 
     // Cache the full status list
     const db = getDb();
