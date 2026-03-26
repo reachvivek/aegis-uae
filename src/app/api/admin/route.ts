@@ -43,14 +43,35 @@ export async function GET(request: Request) {
         "SELECT referrer, COUNT(*) as count FROM page_views WHERE referrer != '' GROUP BY referrer ORDER BY count DESC LIMIT 10"
       );
 
+      // Location data + hourly breakdown
+      const [topCountries, topCities, viewsByHour] = await Promise.all([
+        db.execute(
+          "SELECT country, COUNT(*) as count FROM page_views WHERE country IS NOT NULL AND country != '' GROUP BY country ORDER BY count DESC LIMIT 20"
+        ),
+        db.execute(
+          "SELECT city, country, COUNT(*) as count FROM page_views WHERE city IS NOT NULL AND city != '' GROUP BY city, country ORDER BY count DESC LIMIT 20"
+        ),
+        db.execute(
+          "SELECT CAST(strftime('%H', created_at) AS INTEGER) as hour, COUNT(*) as count FROM page_views WHERE created_at > datetime('now', '-1 day') GROUP BY hour ORDER BY hour"
+        ),
+      ]);
+
+      // Peak hour
+      const hourRows = viewsByHour.rows.map((r) => ({ hour: r.hour as number, count: r.count as number }));
+      const peakHour = hourRows.length > 0 ? hourRows.reduce((a, b) => a.count > b.count ? a : b).hour : null;
+
       return NextResponse.json({
         totalViews: (views.rows[0]?.count as number) || 0,
         totalConversations: (convos.rows[0]?.count as number) || 0,
         uniqueVisitors: (uniqueSessions.rows[0]?.count as number) || 0,
         todayViews: (todayViews.rows[0]?.count as number) || 0,
         viewsByDay: viewsByDay.rows.map((r) => ({ day: r.day, count: r.count })),
+        viewsByHour: hourRows,
         devices: devices.rows.map((r) => ({ device: r.device, count: r.count })),
         referrers: referrers.rows.map((r) => ({ referrer: r.referrer, count: r.count })),
+        countries: topCountries.rows.map((r) => ({ country: r.country, count: r.count })),
+        cities: topCities.rows.map((r) => ({ city: r.city, country: r.country, count: r.count })),
+        peakHour,
       });
     }
 

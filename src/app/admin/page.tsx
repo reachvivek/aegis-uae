@@ -9,8 +9,14 @@ interface Overview {
   uniqueVisitors: number;
   todayViews: number;
   viewsByDay: { day: string; count: number }[];
+  viewsByHour: { hour: number; count: number }[];
   devices: { device: string; count: number }[];
   referrers: { referrer: string; count: number }[];
+  countries: { country: string; count: number }[];
+  cities: { city: string; country: string; count: number }[];
+  avgSessionDuration: number;
+  bounceRate: number;
+  peakHour: number;
 }
 
 interface Session {
@@ -178,68 +184,168 @@ export default function AdminPage() {
 
         {/* Overview */}
         {tab === "overview" && overview && !loading && (
-          <div className="space-y-6">
-            {/* Stat cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="space-y-4">
+            {/* Stat cards - 6 metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {[
-                { label: "Total Views", value: overview.totalViews, color: "text-[#00E5B8]" },
-                { label: "Today", value: overview.todayViews, color: "text-[#00E5B8]" },
-                { label: "Unique Visitors", value: overview.uniqueVisitors, color: "text-blue-400" },
-                { label: "Conversations", value: overview.totalConversations, color: "text-purple-400" },
+                { label: "Total Views", value: overview.totalViews, color: "text-[#00E5B8]", border: "border-[#00E5B8]/20" },
+                { label: "Today", value: overview.todayViews, color: "text-[#00E5B8]", border: "border-[#00E5B8]/20" },
+                { label: "Unique Visitors", value: overview.uniqueVisitors, color: "text-blue-400", border: "border-blue-400/20" },
+                { label: "Conversations", value: overview.totalConversations, color: "text-purple-400", border: "border-purple-400/20" },
+                { label: "Countries", value: (overview.countries || []).length, color: "text-amber-400", border: "border-amber-400/20" },
+                { label: "Peak Hour", value: overview.peakHour != null ? `${overview.peakHour}:00` : "-", color: "text-cyan-400", border: "border-cyan-400/20", raw: true },
               ].map((s) => (
-                <div key={s.label} className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
-                  <p className="text-[10px] text-[#7C7C8A] uppercase tracking-wider mb-1">{s.label}</p>
-                  <p className={cn("text-2xl font-bold font-mono", s.color)}>{s.value.toLocaleString()}</p>
+                <div key={s.label} className={cn("bg-[#0C0C10] border rounded-xl p-3", s.border)}>
+                  <p className="text-[9px] text-[#7C7C8A] uppercase tracking-wider mb-1">{s.label}</p>
+                  <p className={cn("text-xl font-bold font-mono", s.color)}>
+                    {(s as any).raw ? String(s.value) : typeof s.value === "number" ? s.value.toLocaleString() : s.value}
+                  </p>
                 </div>
               ))}
             </div>
 
-            {/* Views by day chart (simple bar chart) */}
-            {overview.viewsByDay.length > 0 && (
+            {/* Views chart + Hourly heatmap */}
+            <div className="grid md:grid-cols-2 gap-3">
+              {/* Views by day */}
+              {overview.viewsByDay.length > 0 && (
+                <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Views (Last 7 Days)</p>
+                  <div className="flex items-end gap-2 h-32">
+                    {overview.viewsByDay.map((d) => {
+                      const max = Math.max(...overview.viewsByDay.map((v) => v.count as number), 1);
+                      const height = ((d.count as number) / max) * 100;
+                      return (
+                        <div key={d.day as string} className="flex-1 flex flex-col items-center gap-1 group">
+                          <span className="text-[9px] font-mono text-[#7C7C8A] opacity-0 group-hover:opacity-100 transition-opacity">{d.count as number}</span>
+                          <div className="w-full rounded-t-md bg-gradient-to-t from-[#00E5B8]/30 to-[#00E5B8]/10 border border-[#00E5B8]/30 transition-all group-hover:from-[#00E5B8]/50 group-hover:to-[#00E5B8]/20"
+                            style={{ height: `${Math.max(height, 4)}%` }} />
+                          <span className="text-[8px] font-mono text-[#7C7C8A]">{(d.day as string).slice(5)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Hourly activity heatmap */}
               <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Views (Last 7 Days)</p>
-                <div className="flex items-end gap-2 h-32">
-                  {overview.viewsByDay.map((d) => {
-                    const max = Math.max(...overview.viewsByDay.map((v) => v.count as number), 1);
-                    const height = ((d.count as number) / max) * 100;
+                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Activity by Hour (Today)</p>
+                <div className="grid grid-cols-12 gap-1">
+                  {Array.from({ length: 24 }, (_, h) => {
+                    const hourData = (overview.viewsByHour || []).find((v) => v.hour === h);
+                    const count = hourData?.count || 0;
+                    const maxHour = Math.max(...(overview.viewsByHour || []).map((v) => v.count as number), 1);
+                    const intensity = count / maxHour;
                     return (
-                      <div key={d.day as string} className="flex-1 flex flex-col items-center gap-1">
-                        <span className="text-[9px] font-mono text-[#7C7C8A]">{d.count as number}</span>
-                        <div className="w-full rounded-t-md bg-[#00E5B8]/20 border border-[#00E5B8]/30 transition-all"
-                          style={{ height: `${Math.max(height, 4)}%` }} />
-                        <span className="text-[8px] font-mono text-[#7C7C8A]">{(d.day as string).slice(5)}</span>
+                      <div key={h} className="flex flex-col items-center gap-0.5 group" title={`${h}:00 - ${count} views`}>
+                        <div className="w-full aspect-square rounded-sm transition-all"
+                          style={{
+                            backgroundColor: count > 0 ? `rgba(0, 229, 184, ${0.15 + intensity * 0.7})` : "rgba(30, 30, 40, 0.5)",
+                            boxShadow: count > 0 ? `0 0 ${intensity * 8}px rgba(0, 229, 184, ${intensity * 0.3})` : "none",
+                          }} />
+                        {h % 3 === 0 && <span className="text-[6px] font-mono text-[#7C7C8A]">{h}</span>}
                       </div>
                     );
                   })}
                 </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-[7px] text-[#7C7C8A] font-mono">Less</span>
+                  <div className="flex gap-0.5">
+                    {[0.1, 0.3, 0.5, 0.7, 0.9].map((o) => (
+                      <div key={o} className="w-2 h-2 rounded-sm" style={{ backgroundColor: `rgba(0, 229, 184, ${o})` }} />
+                    ))}
+                  </div>
+                  <span className="text-[7px] text-[#7C7C8A] font-mono">More</span>
+                </div>
               </div>
-            )}
+            </div>
 
-            {/* Devices + Referrers side by side */}
-            <div className="grid md:grid-cols-2 gap-3">
+            {/* Devices (donut chart style) + Locations */}
+            <div className="grid md:grid-cols-3 gap-3">
+              {/* Devices as visual bars */}
               <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Devices</p>
-                <div className="space-y-2">
-                  {overview.devices.map((d) => (
-                    <div key={d.device as string} className="flex items-center justify-between">
-                      <span className="text-xs text-white capitalize">{(d.device as string) || "Unknown"}</span>
-                      <span className="text-xs font-mono text-[#00E5B8]">{d.count as number}</span>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  {overview.devices.map((d) => {
+                    const total = overview.devices.reduce((s, x) => s + (x.count as number), 0) || 1;
+                    const pct = Math.round(((d.count as number) / total) * 100);
+                    const colors: Record<string, string> = { desktop: "#00E5B8", mobile: "#818CF8", tablet: "#F59E0B" };
+                    const color = colors[(d.device as string)?.toLowerCase()] || "#7C7C8A";
+                    return (
+                      <div key={d.device as string}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-white capitalize font-bold">{(d.device as string) || "Unknown"}</span>
+                          <span className="text-[10px] font-mono" style={{ color }}>{pct}% ({d.count as number})</span>
+                        </div>
+                        <div className="h-2 bg-[#1E1E28] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                   {overview.devices.length === 0 && <p className="text-xs text-[#7C7C8A]">No data yet</p>}
                 </div>
               </div>
+
+              {/* Top Countries */}
               <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Top Referrers</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Top Countries</p>
                 <div className="space-y-2">
-                  {overview.referrers.map((r) => (
-                    <div key={r.referrer as string} className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-white truncate flex-1">{(r.referrer as string) || "Direct"}</span>
-                      <span className="text-xs font-mono text-blue-400 shrink-0">{r.count as number}</span>
+                  {(overview.countries || []).map((c, i) => {
+                    const total = (overview.countries || []).reduce((s, x) => s + (x.count as number), 0) || 1;
+                    const pct = Math.round(((c.count as number) / total) * 100);
+                    return (
+                      <div key={c.country as string} className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono text-[#7C7C8A] w-4 text-right">{i + 1}</span>
+                        <span className="text-xs text-white flex-1 truncate">{(c.country as string) || "Unknown"}</span>
+                        <div className="w-16 h-1.5 bg-[#1E1E28] rounded-full overflow-hidden">
+                          <div className="h-full bg-amber-400/70 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-[10px] font-mono text-amber-400 w-8 text-right">{c.count as number}</span>
+                      </div>
+                    );
+                  })}
+                  {(overview.countries || []).length === 0 && <p className="text-xs text-[#7C7C8A]">Collecting location data...</p>}
+                </div>
+              </div>
+
+              {/* Top Cities */}
+              <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Top Cities</p>
+                <div className="space-y-2">
+                  {(overview.cities || []).map((c, i) => (
+                    <div key={`${c.city}-${c.country}`} className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-[#7C7C8A] w-4 text-right">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs text-white truncate block">{(c.city as string) || "Unknown"}</span>
+                        <span className="text-[8px] text-[#7C7C8A]">{c.country as string}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-blue-400">{c.count as number}</span>
                     </div>
                   ))}
-                  {overview.referrers.length === 0 && <p className="text-xs text-[#7C7C8A]">No referrer data yet</p>}
+                  {(overview.cities || []).length === 0 && <p className="text-xs text-[#7C7C8A]">Collecting location data...</p>}
                 </div>
+              </div>
+            </div>
+
+            {/* Referrers */}
+            <div className="bg-[#0C0C10] border border-[#1E1E28] rounded-xl p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#7C7C8A] mb-3">Traffic Sources</p>
+              <div className="grid md:grid-cols-2 gap-x-6 gap-y-2">
+                {overview.referrers.map((r) => {
+                  const total = overview.referrers.reduce((s, x) => s + (x.count as number), 0) || 1;
+                  const pct = Math.round(((r.count as number) / total) * 100);
+                  return (
+                    <div key={r.referrer as string} className="flex items-center gap-2">
+                      <span className="text-xs text-white truncate flex-1">{(r.referrer as string) || "Direct"}</span>
+                      <div className="w-20 h-1.5 bg-[#1E1E28] rounded-full overflow-hidden shrink-0">
+                        <div className="h-full bg-blue-400/70 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-[10px] font-mono text-blue-400 w-6 text-right shrink-0">{r.count as number}</span>
+                    </div>
+                  );
+                })}
+                {overview.referrers.length === 0 && <p className="text-xs text-[#7C7C8A]">No referrer data yet</p>}
               </div>
             </div>
           </div>

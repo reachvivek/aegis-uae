@@ -36,7 +36,7 @@ export default function Dashboard() {
   const [tab, setTab] = useState<RightTab>("news");
   const [evacOpen, setEvacOpen] = useState(false);
   const [shelterOpen, setShelterOpen] = useState(false);
-  const [expanded, setExpanded] = useState<"stats" | "content" | null>(null);
+  const [collapsed, setCollapsed] = useState<"stats" | "content" | null>(null);
   const [maximized, setMaximized] = useState(false);
 
   const tabLabels: Record<RightTab, string> = { news: "News & Updates", connectivity: "Route Connectivity", threats: "Threat Timeline", intel: "Latest Intel" };
@@ -65,25 +65,27 @@ export default function Dashboard() {
             <div className="lg:col-span-5 xl:col-span-4 flex flex-col lg:overflow-hidden
                             min-h-0 mt-2 lg:mt-0 gap-1.5">
 
-              {/* Stats carousel - collapsible */}
-              <div
-                className={cn(
-                  "transition-all duration-300 ease-in-out overflow-hidden rounded-lg",
-                  expanded === "content" ? "lg:h-10 lg:min-h-[40px]" : expanded === "stats" ? "lg:flex-[3]" : "shrink-0"
-                )}
-                onMouseEnter={() => setExpanded("stats")}
-                onMouseLeave={() => setExpanded(null)}
-              >
-                {expanded === "content" ? (
+              {/* Stats carousel - collapsible via click */}
+              <div className="transition-all duration-300 ease-in-out overflow-hidden rounded-lg">
+                {collapsed === "stats" ? (
                   <button
-                    onClick={() => setExpanded("stats")}
-                    className="w-full h-10 bg-card border border-border/50 rounded-lg flex items-center justify-between px-3 hover:bg-secondary/50 transition-colors"
+                    onClick={() => setCollapsed(null)}
+                    className="w-full h-9 bg-card border border-border/50 rounded-lg flex items-center justify-between px-3 hover:bg-secondary/50 transition-colors"
                   >
                     <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Stats & Status</span>
                     <CaretDownIcon className="w-3 h-3 text-muted-foreground" weight="bold" />
                   </button>
                 ) : (
-                  <StatsCarousel />
+                  <div className="relative">
+                    <StatsCarousel />
+                    <button
+                      onClick={() => setCollapsed("stats")}
+                      className="absolute top-1.5 right-10 z-10 h-5 w-5 rounded flex items-center justify-center bg-card/80 backdrop-blur-sm border border-border/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      title="Collapse stats"
+                    >
+                      <CaretUpIcon className="w-3 h-3" weight="bold" />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -105,6 +107,20 @@ export default function Dashboard() {
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
+
+                {/* Collapse/expand content toggle */}
+                <button
+                  onClick={() => setCollapsed(collapsed === "content" ? null : "content")}
+                  className={cn(
+                    "shrink-0 h-7 w-7 rounded-md flex items-center justify-center transition-colors border border-border/50",
+                    collapsed === "content" ? "bg-teal/15 text-teal border-teal/30" : "bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                  )}
+                  title={collapsed === "content" ? "Expand feed" : "Collapse feed"}
+                >
+                  {collapsed === "content"
+                    ? <CaretDownIcon className="w-3.5 h-3.5" weight="bold" />
+                    : <CaretUpIcon className="w-3.5 h-3.5" weight="bold" />}
+                </button>
 
                 {/* Maximize button */}
                 <button
@@ -132,19 +148,15 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* Tab content - collapsible, takes remaining space */}
-              <div
-                className={cn(
-                  "transition-all duration-300 ease-in-out overflow-hidden",
-                  expanded === "stats" ? "lg:h-10 lg:min-h-[40px]" : "flex-1 min-h-[50vh] sm:min-h-[40vh] lg:min-h-0"
-                )}
-                onMouseEnter={() => setExpanded("content")}
-                onMouseLeave={() => setExpanded(null)}
-              >
-                {expanded === "stats" ? (
+              {/* Tab content - collapsible via click, takes remaining space */}
+              <div className={cn(
+                "transition-all duration-300 ease-in-out overflow-hidden",
+                collapsed === "content" ? "lg:h-9 lg:min-h-[36px]" : "flex-1 min-h-[50vh] sm:min-h-[40vh] lg:min-h-0"
+              )}>
+                {collapsed === "content" ? (
                   <button
-                    onClick={() => setExpanded("content")}
-                    className="w-full h-10 bg-card border border-border/50 rounded-lg flex items-center justify-between px-3 hover:bg-secondary/50 transition-colors"
+                    onClick={() => setCollapsed(null)}
+                    className="w-full h-9 bg-card border border-border/50 rounded-lg flex items-center justify-between px-3 hover:bg-secondary/50 transition-colors"
                   >
                     <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{tabLabels[tab]}</span>
                     <CaretDownIcon className="w-3 h-3 text-muted-foreground" weight="bold" />

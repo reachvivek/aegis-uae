@@ -28,9 +28,26 @@ export async function processAlerts(): Promise<void> {
     }
 
     // Generate alerts from earthquake data
+    // Only for quakes M3.5+ within ~500km of UAE center (24.5, 54.5)
+    const UAE_CENTER_LAT = 24.5;
+    const UAE_CENTER_LNG = 54.5;
+    const MAX_DISTANCE_KM = 500;
+
+    function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+      const toRad = (d: number) => (d * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+      return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
     const quakes = await getCache("earthquakes");
     if (quakes) {
-      for (const q of (quakes.data.quakes || []).filter((q: any) => q.magnitude >= 4.0)) {
+      const relevantQuakes = (quakes.data.quakes || []).filter((q: any) =>
+        q.magnitude >= 3.5 && haversineKm(UAE_CENTER_LAT, UAE_CENTER_LNG, q.lat, q.lng) <= MAX_DISTANCE_KM
+      );
+
+      for (const q of relevantQuakes) {
         const id = `quake-${q.id}`;
         const severity = q.magnitude >= 6.0 ? "critical" : q.magnitude >= 5.0 ? "warning" : "advisory";
 

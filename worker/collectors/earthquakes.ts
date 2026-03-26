@@ -1,7 +1,7 @@
 import { setCache } from "../db/cache";
 
-// Gulf region bounding box
-const USGS_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=20&maxlatitude=30&minlongitude=48&maxlongitude=60&minmagnitude=2.5&orderby=time&limit=20";
+// UAE and immediate surroundings bounding box (lat 22-27, lng 51-57)
+const USGS_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=22&maxlatitude=27&minlongitude=51&maxlongitude=57&minmagnitude=2.5&orderby=time&limit=20";
 
 export async function collectEarthquakes(): Promise<void> {
   try {

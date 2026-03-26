@@ -72,20 +72,55 @@ export default function AlertBanner() {
   const [paused, setPaused] = useState(false);
 
   // Map API alerts to component format, fallback to mock data
-  const alerts: CriticalAlert[] = apiAlerts.length > 0
-    ? apiAlerts.map((a: any) => ({
-        id: a.id,
-        severity: a.severity as AlertSeverity,
-        category: a.category || "GENERAL",
-        title: a.title,
-        description: a.description || "",
-        icon: categoryIcons[a.category] || <WarningIcon className="w-3 h-3" weight="duotone" />,
-        source: a.source || "System",
-        regions: a.regions || [],
-        issuedAt: a.issuedAt,
-        expiresAt: a.expiresAt,
-      }))
-    : fallbackAlerts;
+  const alerts: CriticalAlert[] = (() => {
+    if (apiAlerts.length === 0) return fallbackAlerts;
+
+    const mapped: CriticalAlert[] = apiAlerts.map((a: any) => ({
+      id: a.id,
+      severity: a.severity as AlertSeverity,
+      category: a.category || "GENERAL",
+      title: a.title,
+      description: a.description || "",
+      icon: categoryIcons[a.category] || <WarningIcon className="w-3 h-3" weight="duotone" />,
+      source: a.source || "System",
+      regions: a.regions || [],
+      issuedAt: a.issuedAt,
+      expiresAt: a.expiresAt,
+    }));
+
+    // Group seismic alerts into a single summary item
+    const seismic = mapped.filter((a) => a.category === "SEISMIC");
+    const nonSeismic = mapped.filter((a) => a.category !== "SEISMIC");
+
+    if (seismic.length > 1) {
+      const maxMag = seismic.reduce((max, a) => {
+        const match = a.title.match(/M([\d.]+)/);
+        const mag = match ? parseFloat(match[1]) : 0;
+        return mag > max ? mag : max;
+      }, 0);
+      const highestSeverity = seismic.some((a) => a.severity === "critical")
+        ? "critical" as AlertSeverity
+        : seismic.some((a) => a.severity === "warning")
+          ? "warning" as AlertSeverity
+          : "advisory" as AlertSeverity;
+
+      const summary: CriticalAlert = {
+        id: "seismic-summary",
+        severity: highestSeverity,
+        category: "SEISMIC",
+        title: `${seismic.length} Seismic Events Detected – Highest M${maxMag.toFixed(1)}`,
+        description: `${seismic.length} earthquakes recorded in the region. Strongest: M${maxMag.toFixed(1)}.`,
+        icon: categoryIcons["SEISMIC"],
+        source: "USGS",
+        regions: ["UAE Region"],
+        issuedAt: seismic[0].issuedAt,
+        expiresAt: seismic[0].expiresAt,
+      };
+      return [...nonSeismic, summary];
+    }
+
+    return mapped;
+  })();
 
   useEffect(() => setMounted(true), []);
 
