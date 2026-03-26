@@ -97,16 +97,16 @@ const zones = [
   { label: "Rerouted", color: "bg-amber", count: 1 },
   { label: "Restricted", color: "bg-danger", count: 1 },
   { label: "Weather", color: "bg-blue-500", count: 4 },
-  { label: "Seismic", color: "bg-yellow-400", count: 0 },
+  { label: "Seismic", color: "bg-violet-400", count: 0 },
 ];
 
 type LayerToggle = "flights" | "weather" | "airspace" | "seismic";
 
-const layerConfig: Record<LayerToggle, { Icon: React.ComponentType<any>; label: string; color: string }> = {
-  flights: { Icon: AirplaneTiltIcon, label: "Flights", color: "bg-teal" },
-  weather: { Icon: CloudRainIcon, label: "Weather", color: "bg-blue-400" },
-  airspace: { Icon: WarningIcon, label: "Airspace", color: "bg-amber" },
-  seismic: { Icon: WaveSineIcon, label: "Seismic", color: "bg-yellow-400" },
+const layerConfig: Record<LayerToggle, { Icon: React.ComponentType<any>; label: string; color: string; desc: string }> = {
+  flights: { Icon: AirplaneTiltIcon, label: "Flights", color: "bg-teal", desc: "Active flight paths and airport status" },
+  weather: { Icon: CloudRainIcon, label: "Weather", color: "bg-blue-400", desc: "Rain, thunder, and wind zones" },
+  airspace: { Icon: WarningIcon, label: "Airspace", color: "bg-rose-500", desc: "Restricted and caution airspace zones" },
+  seismic: { Icon: WaveSineIcon, label: "Seismic", color: "bg-violet-400", desc: "Earthquake and seismic activity" },
 };
 
 export default function StabilityMap() {
@@ -454,21 +454,30 @@ export default function StabilityMap() {
         <div ref={mapRef} className="absolute inset-0" />
 
         {/* Layer toggles */}
-        <div className="absolute top-2 left-2 z-[1000] flex flex-col gap-1">
+        <div className="absolute top-2 left-2 z-[1000] flex flex-col gap-1 group/layers">
           {(["flights", "weather", "airspace", "seismic"] as const).map((layer) => {
-            const { Icon, label, color } = layerConfig[layer];
+            const { Icon, label, color, desc } = layerConfig[layer];
             const active = activeLayers.has(layer);
             return (
-              <Button key={layer} variant={active ? "secondary" : "ghost"} size="sm"
-                className={cn(
-                  "h-6 text-[9px] gap-1.5 justify-start transition-all duration-200",
-                  active ? "bg-secondary/90 text-foreground" : "bg-background/60 backdrop-blur-sm text-muted-foreground/50"
-                )}
-                onClick={() => toggleLayer(layer)}>
-                <span className={cn("w-1.5 h-1.5 rounded-full shrink-0 transition-colors", active ? color : "bg-muted-foreground/30")} />
-                <Icon className={cn("w-3 h-3 transition-opacity", active ? "opacity-100" : "opacity-40")} weight="bold" />
-                {label}
-              </Button>
+              <div key={layer} className="relative group/item">
+                <Button variant={active ? "secondary" : "ghost"} size="sm"
+                  className={cn(
+                    "h-6 text-[9px] gap-1.5 justify-start transition-all duration-200",
+                    active ? "bg-secondary/90 text-foreground" : "bg-background/60 backdrop-blur-sm text-muted-foreground/50"
+                  )}
+                  onClick={() => toggleLayer(layer)}>
+                  <span className={cn("w-1.5 h-1.5 rounded-full shrink-0 transition-colors", active ? color : "bg-muted-foreground/30")} />
+                  <Icon className={cn("w-3 h-3 transition-opacity", active ? "opacity-100" : "opacity-40")} weight="bold" />
+                  {label}
+                </Button>
+                <div className="absolute left-full top-0 ml-1.5 hidden group-hover/item:block pointer-events-none z-50">
+                  <div className="bg-card/95 backdrop-blur-md border border-border rounded-md px-2.5 py-1.5 shadow-lg whitespace-nowrap">
+                    <p className="text-[9px] font-bold text-foreground">{label}</p>
+                    <p className="text-[8px] text-muted-foreground">{desc}</p>
+                    <p className="text-[7px] font-mono mt-0.5">{active ? <span className="text-success">Visible</span> : <span className="text-muted-foreground/50">Hidden</span>}</p>
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
